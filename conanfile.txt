@@ -1,0 +1,20 @@
+[requires]
+spdlog/1.9.2
+glm/0.9.9.7
+catch2/2.13.6
+lyra/1.5.1
+zlib/1.2.12
+range-v3/0.11.0
+sdl/2.0.20
+
+[options]
+sdl:jack=False
+sdl:shared=True
+sdl:wayland=False
+
+[generators]
+cmake
+cmake_find_package
+
+[imports]
+lib, *.so* -> ./lib @ root_package=sdl

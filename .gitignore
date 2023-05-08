@@ -1,0 +1,17 @@
+build/*
+build2/*
+build3/*
+build-*/*
+__pycache__
+CMakeLists.txt.user*
+Documentation/hugo/public
+Documentation/hugo/public-*
+*.pyc
+.pytest_cache
+.ipynb_checkpoints
+share/nfcbn/nd2/jupyter_notebooks/.ipynb_checkpoints
+share/nfcbn/nd2/jupyter_notebooks/*.html
+share/nfcbn/nd2/jupyter_notebooks/*.py
+share/nfcbn/nd2/jupyter_notebooks/*.nbconvert.ipynb
+*.autosave
+.cache

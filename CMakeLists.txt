@@ -68,8 +68,33 @@ target_link_libraries( rt_project_libraries
     INTERFACE
         CONAN_PKG::glm
         CONAN_PKG::spdlog
+	CONAN_PKG::sdl
         stdc++fs
 )
+
+#########################################################
+# Build IMGUI
+#########################################################
+set(lib_name   ${PROJECT_NAME}_imgui)
+set(lib_alias  ${PROJECT_NAME}::imgui)
+# IMGUI source recommends to always build static
+add_library( ${lib_name}
+                    third_party/imgui/imgui.cpp
+                    third_party/imgui/imgui_draw.cpp
+                    third_party/imgui/imgui_demo.cpp
+                    third_party/imgui/imgui_tables.cpp
+                    third_party/imgui/imgui_widgets.cpp
+                    third_party/imgui/misc/cpp/imgui_stdlib.cpp
+                    )
+target_compile_features(${lib_name} INTERFACE cxx_std_17)
+add_library( ${lib_alias} ALIAS ${lib_name} )
+target_include_directories( ${lib_name}
+                               SYSTEM
+                               INTERFACE
+                                   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated>"
+
+                  )
+target_link_libraries( ${lib_name} PRIVATE                              CONAN_PKG::glm)
 
 set(RT_BIN_DIR 			${CMAKE_INSTALL_PREFIX}/bin)
 set(RT_LIB_DIR 			${CMAKE_INSTALL_PREFIX}/lib)
