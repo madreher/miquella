@@ -79,12 +79,13 @@ set(lib_name   ${PROJECT_NAME}_imgui)
 set(lib_alias  ${PROJECT_NAME}::imgui)
 # IMGUI source recommends to always build static
 add_library( ${lib_name}
-                    third_party/imgui/imgui.cpp
-                    third_party/imgui/imgui_draw.cpp
-                    third_party/imgui/imgui_demo.cpp
-                    third_party/imgui/imgui_tables.cpp
-                    third_party/imgui/imgui_widgets.cpp
-                    third_party/imgui/misc/cpp/imgui_stdlib.cpp
+                    thirdParty/imgui/imgui.cpp
+                    thirdParty/imgui/imgui_draw.cpp
+                    thirdParty/imgui/imgui_demo.cpp
+                    thirdParty/imgui/imgui_tables.cpp
+                    thirdParty/imgui/imgui_widgets.cpp
+                    thirdParty/imgui/misc/cpp/imgui_stdlib.cpp
+                    thirdParty/imgui/backends/imgui_impl_sdl2.cpp
                     )
 target_compile_features(${lib_name} INTERFACE cxx_std_17)
 add_library( ${lib_alias} ALIAS ${lib_name} )
@@ -94,7 +95,27 @@ target_include_directories( ${lib_name}
                                    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated>"
 
                   )
-target_link_libraries( ${lib_name} PRIVATE                              CONAN_PKG::glm)
+target_link_libraries( ${lib_name}
+                        PRIVATE
+                        CONAN_PKG::glm
+                        CONAN_PKG::sdl)
+
+target_include_directories( ${lib_name}
+                             SYSTEM
+                             INTERFACE
+                             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/imgui>"
+                             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/imgui/backends>"
+                             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/ImGuiFileDialog>"
+
+
+                )
+target_include_directories( ${lib_name}
+                             SYSTEM
+                             PRIVATE
+                             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/imgui>"
+                             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/imgui/backends>"
+
+                )
 
 set(RT_BIN_DIR 			${CMAKE_INSTALL_PREFIX}/bin)
 set(RT_LIB_DIR 			${CMAKE_INSTALL_PREFIX}/lib)
