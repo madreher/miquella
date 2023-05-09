@@ -69,6 +69,7 @@ target_link_libraries( rt_project_libraries
         CONAN_PKG::glm
         CONAN_PKG::spdlog
 	CONAN_PKG::sdl
+        CONAN_PKG::glad
         stdc++fs
 )
 
@@ -86,6 +87,7 @@ add_library( ${lib_name}
                     thirdParty/imgui/imgui_widgets.cpp
                     thirdParty/imgui/misc/cpp/imgui_stdlib.cpp
                     thirdParty/imgui/backends/imgui_impl_sdl2.cpp
+                    thirdParty/imgui/backends/imgui_impl_opengl3.cpp
                     )
 target_compile_features(${lib_name} INTERFACE cxx_std_17)
 add_library( ${lib_alias} ALIAS ${lib_name} )
