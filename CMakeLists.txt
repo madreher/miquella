@@ -69,7 +69,8 @@ target_link_libraries( rt_project_libraries
         CONAN_PKG::glm
         CONAN_PKG::spdlog
 	CONAN_PKG::sdl
-        CONAN_PKG::glad
+        #CONAN_PKG::glad
+        CONAN_PKG::glbinding
         stdc++fs
 )
 

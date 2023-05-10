@@ -1,7 +1,12 @@
 #include <iostream>
 #include <chrono>
 
-#include <glad/glad.h>
+//#include <glad/glad.h>
+#include <glbinding/gl/gl.h>
+#include <glbinding/glbinding.h>
+#include <glbinding/Version.h>
+#include <glbinding-aux/ContextInfo.h>
+#include <glbinding-aux/types_to_string.h>
 
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -14,6 +19,8 @@
 // - https://github.com/ThoSe1990/opengl_imgui
 // - https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples#Example-for-OpenGL-users
 
+using namespace gl;
+
 int main() {
 
     // Image
@@ -21,8 +28,7 @@ int main() {
     int windowWidth = 800;
     int windowHeight = 600;
 
-    int imageWidth = 200;
-    int imageHeight = 200;
+    // ---------------------- SDL Setup----------------------------------
 
     // SDL Context creation
     SDL_Init( SDL_INIT_VIDEO );
@@ -50,32 +56,20 @@ int main() {
 
     SDL_GetWindowSize(window, &windowWidth, &windowHeight);
 
-
     // enable VSync
     SDL_GL_SetSwapInterval(1);
 
-    // Glad will provides the OpenGL implementation.
-    // TODO: see it should be replaced by glbindings
-    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
-    {
-        std::cerr << "[ERROR] Couldn't initialize glad" << std::endl;
-        return -1;
-    }
-    else
-    {
-        std::cout << "[INFO] glad initialized" << std::endl;
-    }
+    // ---------------------- GLBinding Setup ----------------------------------
 
+    // Initializing glbinding
+    glbinding::initialize([](const char* name) { return (glbinding::ProcAddress)SDL_GL_GetProcAddress(name); });
     std::cout << "[INFO] OpenGL renderer: "
               << glGetString(GL_RENDERER)
               << std::endl;
 
-    // apparently, that shows maximum supported version
-    std::cout << "[INFO] OpenGL from glad: "
-              << GLVersion.major
-              << "."
-              << GLVersion.minor
-              << std::endl;
+    std::cout << "[INFO] OpenGL Version: " << glbinding::aux::ContextInfo::version() << std::endl;
+
+    // ---------------------- Imgui Setup ----------------------------------
 
     ImGui::CreateContext();
     auto & io = ImGui::GetIO();
@@ -84,10 +78,13 @@ int main() {
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-
     ImGui::StyleColorsDark();
 
+    // ---------------------- Dummy image Setup ----------------------------------
+
     // Create a picture on CPU side
+    int imageWidth = 200;
+    int imageHeight = 200;
     unsigned char data[imageWidth*imageHeight*4];
     for (int j = imageHeight-1; j >= 0; --j) {
         for (int i = 0; i < imageWidth; ++i) {
@@ -126,6 +123,8 @@ int main() {
 #endif
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
+
+    // ---------------------- Event loop handling ----------------------------------
 
     SDL_Event event;
     bool quit = false;

@@ -6,7 +6,8 @@ lyra/1.5.1
 zlib/1.2.12
 range-v3/0.11.0
 sdl/2.0.20
-glad/0.1.36
+#glad/0.1.36
+glbinding/3.1.0
 
 [options]
 sdl:jack=False
