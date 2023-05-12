@@ -1,12 +1,13 @@
-add_executable(RayTracer main.cpp)
+add_executable(MiquellaSDL main.cpp)
 
-target_link_libraries(RayTracer
-                              	rt_project_libraries
-				rt_project_options
+target_link_libraries(MiquellaSDL
+                                MQ_project_libraries
+                                MQ_project_options
+                                MQ_project_warnings
                                 ${PROJECT_NAME}::imgui
                      )
 install(TARGETS
-            RayTracer
+            MiquellaSDL
         DESTINATION
-            ${RT_BIN_DIR}
+            ${MQ_BIN_DIR}
         )

@@ -4,7 +4,7 @@
 # lable.md
 
 function(set_project_warnings project_name)
-  option(NANODESIGNER_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" TRUE)
+  option(MQ_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" TRUE)
 
   set(MSVC_WARNINGS
       /W4 # Baseline reasonable warnings
@@ -62,7 +62,7 @@ function(set_project_warnings project_name)
       -Wno-gnu-zero-variadic-macro-arguments
   )
 
-  if (NANODESIGNER_WARNINGS_AS_ERRORS)
+  if (MQ_WARNINGS_AS_ERRORS)
       set(CLANG_WARNINGS ${CLANG_WARNINGS} -Werror)
       set(MSVC_WARNINGS ${MSVC_WARNINGS} /WX)
   endif()
@@ -83,13 +83,13 @@ function(set_project_warnings project_name)
   )
 
   if(MSVC)
-    set(NANODESIGNER_PROJECT_WARNINGS ${MSVC_WARNINGS})
+    set(MQ_PROJECT_WARNINGS ${MSVC_WARNINGS})
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-    set(NANODESIGNER_PROJECT_WARNINGS ${CLANG_WARNINGS})
+    set(MQ_PROJECT_WARNINGS ${CLANG_WARNINGS})
   else()
-    set(NANODESIGNER_PROJECT_WARNINGS ${GCC_WARNINGS})
+    set(MQ_PROJECT_WARNINGS ${GCC_WARNINGS})
   endif()
 
-  target_compile_options(${project_name} INTERFACE ${NANODESIGNER_PROJECT_WARNINGS})
+  target_compile_options(${project_name} INTERFACE ${MQ_PROJECT_WARNINGS})
 
 endfunction()

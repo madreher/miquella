@@ -5,9 +5,9 @@
 
 function(set_coverage_flags project_name)
 
-  option(NANODESIGNER_ENABLE_COVERAGE "Enable Code Coverage" TRUE)
+  option(MQ_ENABLE_COVERAGE "Enable Code Coverage" TRUE)
 
-  if( NANODESIGNER_ENABLE_COVERAGE )
+  if( MQ_ENABLE_COVERAGE )
 
     if(CMAKE_COMPILER_IS_GNUCC)
 
@@ -17,9 +17,9 @@ function(set_coverage_flags project_name)
         add_custom_target(coverage
             COMMAND rm -rf coverage
             COMMAND mkdir -p coverage
-            COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --filter ${CMAKE_SOURCE_DIR}/src ${exclude_flags} --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ImGuiSystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2Renderer --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2UISystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ActionSystem/include/nfcbn/nd2/Process --html-details --html -o coverage/index.html
-            COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --filter ${CMAKE_SOURCE_DIR}/src ${exclude_flags} --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ImGuiSystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2Renderer --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2UISystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ActionSystem/include/nfcbn/nd2/Process --xml -o coverage/report.xml
-            COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --filter ${CMAKE_SOURCE_DIR}/src ${exclude_flags} --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ImGuiSystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2Renderer --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2UISystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ActionSystem/include/nfcbn/nd2/Process -o coverage/report.txt
+            #COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --filter ${CMAKE_SOURCE_DIR}/src ${exclude_flags} --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ImGuiSystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2Renderer --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2UISystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ActionSystem/include/nfcbn/nd2/Process --html-details --html -o coverage/index.html
+            #COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --filter ${CMAKE_SOURCE_DIR}/src ${exclude_flags} --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ImGuiSystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2Renderer --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2UISystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ActionSystem/include/nfcbn/nd2/Process --xml -o coverage/report.xml
+            #COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --filter ${CMAKE_SOURCE_DIR}/src ${exclude_flags} --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ImGuiSystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2Renderer --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2UISystem --exclude ${CMAKE_SOURCE_DIR}/src/lib/nd2ActionSystem/include/nfcbn/nd2/Process -o coverage/report.txt
             COMMAND cat coverage/report.txt
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}  # Need separate command for this line
         )

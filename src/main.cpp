@@ -1,7 +1,7 @@
 #include <iostream>
 #include <chrono>
+#include <fstream>
 
-//#include <glad/glad.h>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
 #include <glbinding/Version.h>
@@ -13,11 +13,16 @@
 #include <imgui_impl_opengl3.h>
 #include <SDL.h>
 
+#include <miquella/core/ray.h>
+#include <miquella/core/camera.h>
+#include <miquella/core/scene.h>
+
 // Useful ressources:
 // - https://github.com/retifrav/sdl-imgui-example
 // - https://github.com/uysalaltas/Pixel-Engine/tree/main/Pixel
 // - https://github.com/ThoSe1990/opengl_imgui
 // - https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples#Example-for-OpenGL-users
+// - https://github.com/CheerWizard/Gabriel
 
 using namespace gl;
 
@@ -62,7 +67,7 @@ int main() {
     // ---------------------- GLBinding Setup ----------------------------------
 
     // Initializing glbinding
-    glbinding::initialize([](const char* name) { return (glbinding::ProcAddress)SDL_GL_GetProcAddress(name); });
+    glbinding::initialize([](const char* name) { return reinterpret_cast<glbinding::ProcAddress>(SDL_GL_GetProcAddress(name)); });
     std::cout << "[INFO] OpenGL renderer: "
               << glGetString(GL_RENDERER)
               << std::endl;
@@ -80,29 +85,47 @@ int main() {
 
     ImGui::StyleColorsDark();
 
-    // ---------------------- Dummy image Setup ----------------------------------
+    // ---------------------- Scene setup ----------------------------------
+    miquella::core::Scene scene;
+    scene.addSphere(glm::vec3(0,0,-1), 0.5);
+    scene.addSphere(glm::vec3(0,-100.5,-1), 100);
+
+    miquella::core::Camera camera;
+
+    // ---------------------- Ray tracing time ----------------------------------
 
     // Create a picture on CPU side
-    int imageWidth = 200;
-    int imageHeight = 200;
-    unsigned char data[imageWidth*imageHeight*4];
+    const auto aspectRatio = 16.0f / 9.0f;
+    int imageWidth = 400;
+    int imageHeight = static_cast<int>(static_cast<float>(imageWidth) / aspectRatio);
+
+    std::vector<unsigned char> data(static_cast<unsigned int>(imageWidth)*static_cast<unsigned int>(imageHeight)*4);
     for (int j = imageHeight-1; j >= 0; --j) {
         for (int i = 0; i < imageWidth; ++i) {
-            auto r = double(i) / (imageWidth-1);
-            auto g = double(j) / (imageHeight-1);
-            auto b = 0.25;
 
-            int ir = static_cast<int>(255.999 * r);
-            int ig = static_cast<int>(255.999 * g);
-            int ib = static_cast<int>(255.999 * b);
+            int ir = 0;
+            int ig = 0;
+            int ib = 0;
 
-            //std::cout << ir << ' ' << ig << ' ' << ib << '\n';
-            auto index = j*imageHeight*4 + i*4;
-            data[index] = ir;
-            data[index+1] = ig;
-            data[index+2] = ib;
-            data[index+3] = 255;
+            miquella::core::Ray ray = camera.generateRay(
+                        static_cast<float>(i) / static_cast<float>(imageWidth - 1),
+                        static_cast<float>(imageHeight - j - 1) / static_cast<float>(imageHeight - 1)   // The camera (0,0) is bottom left, the texture is (0,0) is top left
+                        );
+            miquella::core::hitRecord record;
+            if(scene.intersect(ray, 0.1f, 10000000.0f, record))
+            {
+                // For now, we color with the normal of impact
+                auto normal = glm::normalize(record.normal);
+                ir = static_cast<int>(255.999f * std::fabs(normal.x));
+                ig = static_cast<int>(255.999f * std::fabs(normal.y));
+                ib = static_cast<int>(255.999f * std::fabs(normal.z));
+            }
 
+            auto index = static_cast<size_t>(j*imageWidth*4 + i*4);
+            data[index] = static_cast<unsigned char>(ir);
+            data[index+1] = static_cast<unsigned char>(ig);
+            data[index+2] = static_cast<unsigned char>(ib);
+            data[index+3] = static_cast<unsigned char>(255);
         }
     }
 
@@ -121,7 +144,7 @@ int main() {
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 #endif
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data());
 
 
     // ---------------------- Event loop handling ----------------------------------
@@ -173,9 +196,8 @@ int main() {
         ImGui::ShowDemoWindow(&show_demo_window);
 
         ImGui::Begin("OpenGL Texture Text");
-        ImGui::Text("pointer = %p", (void*)(intptr_t)image_texture);
         ImGui::Text("size = %d x %d", imageWidth, imageHeight);
-        ImGui::Image((void*)(intptr_t)image_texture, ImVec2(imageWidth, imageHeight));
+        ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(image_texture)), ImVec2(static_cast<float>(imageWidth), static_cast<float>(imageHeight)));
         ImGui::End();
 
         // rendering
