@@ -16,6 +16,7 @@
 #include <miquella/core/ray.h>
 #include <miquella/core/camera.h>
 #include <miquella/core/scene.h>
+#include <miquella/core/utility.h>
 
 // Useful ressources:
 // - https://github.com/retifrav/sdl-imgui-example
@@ -96,8 +97,10 @@ int main() {
 
     // Create a picture on CPU side
     const auto aspectRatio = 16.0f / 9.0f;
-    int imageWidth = 400;
+    int imageWidth = 600;
     int imageHeight = static_cast<int>(static_cast<float>(imageWidth) / aspectRatio);
+
+    int spp = 100;
 
     std::vector<unsigned char> data(static_cast<unsigned int>(imageWidth)*static_cast<unsigned int>(imageHeight)*4);
     for (int j = imageHeight-1; j >= 0; --j) {
@@ -107,19 +110,29 @@ int main() {
             int ig = 0;
             int ib = 0;
 
-            miquella::core::Ray ray = camera.generateRay(
-                        static_cast<float>(i) / static_cast<float>(imageWidth - 1),
-                        static_cast<float>(imageHeight - j - 1) / static_cast<float>(imageHeight - 1)   // The camera (0,0) is bottom left, the texture is (0,0) is top left
-                        );
-            miquella::core::hitRecord record;
-            if(scene.intersect(ray, 0.1f, 10000000.0f, record))
+            for(int k = 0; k < spp; k++)
             {
-                // For now, we color with the normal of impact
-                auto normal = glm::normalize(record.normal);
-                ir = static_cast<int>(255.999f * std::fabs(normal.x));
-                ig = static_cast<int>(255.999f * std::fabs(normal.y));
-                ib = static_cast<int>(255.999f * std::fabs(normal.z));
+                miquella::core::Ray ray = camera.generateRay(
+                            (static_cast<float>(i) + miquella::core::randomFloat()) / static_cast<float>(imageWidth - 1),
+                            (static_cast<float>(imageHeight - j - 1)  + miquella::core::randomFloat()) / static_cast<float>(imageHeight - 1)   // The camera (0,0) is bottom left, the texture is (0,0) is top left
+                            );
+                miquella::core::hitRecord record;
+                if(scene.intersect(ray, 0.1f, 10000000.0f, record))
+                {
+                    // For now, we color with the normal of impact
+                    // The normalized normal components are between [-1, 1]
+                    // We are scaling them between [0, 1] to get the color
+                    auto normal = (glm::normalize(record.normal) + glm::vec3(1.0f, 1.0f, 1.0f)) / 2.0f;
+                    ir += static_cast<int>(254.999f * std::fabs(normal.x));
+                    ig += static_cast<int>(254.999f * std::fabs(normal.y));
+                    ib += static_cast<int>(254.999f * std::fabs(normal.z));
+                }
             }
+
+            // Scaling down by the number of sample per pixel
+            ir = ir / spp;
+            ig = ig / spp;
+            ib = ib / spp;
 
             auto index = static_cast<size_t>(j*imageWidth*4 + i*4);
             data[index] = static_cast<unsigned char>(ir);
