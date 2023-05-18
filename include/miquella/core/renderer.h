@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <miquella/core/camera.h>
+#include <miquella/core/simpleCamera.h>
 #include <miquella/core/scene.h>
 #include <miquella/core/utility.h>
 
@@ -26,7 +27,11 @@ public:
         m_width = width;
         m_height = height;
 
-        m_camera->setAspectRatio(static_cast<float>(m_width) / static_cast<float>(m_height));
+        if( auto c = std::dynamic_pointer_cast<SimpleCamera>(m_camera))
+        {
+            c->setAspectRatio(static_cast<float>(m_width) / static_cast<float>(m_height));
+        }
+
 
         m_image.resize(static_cast<size_t>(m_width * m_height * 4));
     }

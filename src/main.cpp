@@ -14,7 +14,8 @@
 #include <SDL.h>
 
 #include <miquella/core/ray.h>
-#include <miquella/core/camera.h>
+#include <miquella/core/simpleCamera.h>
+#include <miquella/core/lookAtCamera.h>
 #include <miquella/core/scene.h>
 #include <miquella/core/renderer.h>
 #include <miquella/core/utility.h>
@@ -100,7 +101,19 @@ int main() {
     scene->addSphere(glm::vec3(-1.0, 0.0, -1.0), 0.5, sphereMatLeft);
     scene->addSphere(glm::vec3(1.0, 0.0, -1.0), 0.5, sphereMatRight);
 
-    std::shared_ptr<miquella::core::Camera> camera = std::make_shared<miquella::core::Camera>();
+    const auto aspectRatio = 16.0f / 9.0f;
+    //std::shared_ptr<miquella::core::SimpleCamera> camera = std::make_shared<miquella::core::SimpleCamera>();
+
+    glm::vec3 lookFrom = {3.f, 3.f, 2.f};
+    glm::vec3 lookAt = {0.f, 0.f, -1.f};
+    std::shared_ptr<miquella::core::LookAtCamera> camera = std::make_shared<miquella::core::LookAtCamera>(
+                lookFrom,
+                lookAt,
+                glm::vec3{0.f, 1.f, 0.f},
+                20.f,
+                aspectRatio,
+                2.f,
+                glm::distance(lookFrom, lookAt));
 
 
 
@@ -110,7 +123,7 @@ int main() {
     renderer.setScene(scene);
 
     // Create a picture on CPU side
-    const auto aspectRatio = 16.0f / 9.0f;
+
     int imageWidth = 600;
     int imageHeight = static_cast<int>(static_cast<float>(imageWidth) / aspectRatio);
 

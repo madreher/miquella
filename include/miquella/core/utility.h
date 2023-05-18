@@ -56,6 +56,11 @@ inline float clamp(float x, float min, float max) {
     return x;
 }
 
+inline float degToRad(float deg)
+{
+    return (deg * pi) / 180.f;
+}
+
 } // core
 
 } // miquella
