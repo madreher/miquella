@@ -14,9 +14,9 @@ class Scene
 public:
     Scene(){}
 
-    void addSphere(const glm::vec3 & center, float radius)
+    void addSphere(const glm::vec3 & center, float radius, std::shared_ptr<Material> mat)
     {
-        spheres.emplace_back(center, radius);
+        spheres.emplace_back(center, radius, mat);
     }
 
     bool intersect(const Ray & r, float tmin, float tmax, hitRecord& record)

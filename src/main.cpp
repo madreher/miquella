@@ -16,7 +16,10 @@
 #include <miquella/core/ray.h>
 #include <miquella/core/camera.h>
 #include <miquella/core/scene.h>
+#include <miquella/core/renderer.h>
 #include <miquella/core/utility.h>
+#include <miquella/core/lambertian.h>
+#include <miquella/core/metal.h>
 
 // Useful ressources:
 // - https://github.com/retifrav/sdl-imgui-example
@@ -87,60 +90,34 @@ int main() {
     ImGui::StyleColorsDark();
 
     // ---------------------- Scene setup ----------------------------------
-    miquella::core::Scene scene;
-    scene.addSphere(glm::vec3(0,0,-1), 0.5);
-    scene.addSphere(glm::vec3(0,-100.5,-1), 100);
+    std::shared_ptr<miquella::core::Scene> scene = std::make_shared<miquella::core::Scene>();
+    auto groundMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.8f, 0.8f, 0.0f));
+    auto sphereMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.7f, 0.3f, 0.3f));
+    auto sphereMatLeft = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.8f,0.8f), 1.f);
+    auto sphereMatRight = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.6f,0.2f), 1.f);
+    scene->addSphere(glm::vec3(0,0,-1), 0.5, sphereMat);
+    scene->addSphere(glm::vec3(0,-100.5,-1), 100, groundMat);
+    scene->addSphere(glm::vec3(-1.0, 0.0, -1.0), 0.5, sphereMatLeft);
+    scene->addSphere(glm::vec3(1.0, 0.0, -1.0), 0.5, sphereMatRight);
 
-    miquella::core::Camera camera;
+    std::shared_ptr<miquella::core::Camera> camera = std::make_shared<miquella::core::Camera>();
+
+
 
     // ---------------------- Ray tracing time ----------------------------------
+    miquella::core::Renderer renderer;
+    renderer.setCamera(camera);
+    renderer.setScene(scene);
 
     // Create a picture on CPU side
     const auto aspectRatio = 16.0f / 9.0f;
     int imageWidth = 600;
     int imageHeight = static_cast<int>(static_cast<float>(imageWidth) / aspectRatio);
 
-    int spp = 100;
+    renderer.setImageResolution(imageWidth, imageHeight);
 
-    std::vector<unsigned char> data(static_cast<unsigned int>(imageWidth)*static_cast<unsigned int>(imageHeight)*4);
-    for (int j = imageHeight-1; j >= 0; --j) {
-        for (int i = 0; i < imageWidth; ++i) {
-
-            int ir = 0;
-            int ig = 0;
-            int ib = 0;
-
-            for(int k = 0; k < spp; k++)
-            {
-                miquella::core::Ray ray = camera.generateRay(
-                            (static_cast<float>(i) + miquella::core::randomFloat()) / static_cast<float>(imageWidth - 1),
-                            (static_cast<float>(imageHeight - j - 1)  + miquella::core::randomFloat()) / static_cast<float>(imageHeight - 1)   // The camera (0,0) is bottom left, the texture is (0,0) is top left
-                            );
-                miquella::core::hitRecord record;
-                if(scene.intersect(ray, 0.1f, 10000000.0f, record))
-                {
-                    // For now, we color with the normal of impact
-                    // The normalized normal components are between [-1, 1]
-                    // We are scaling them between [0, 1] to get the color
-                    auto normal = (glm::normalize(record.normal) + glm::vec3(1.0f, 1.0f, 1.0f)) / 2.0f;
-                    ir += static_cast<int>(254.999f * std::fabs(normal.x));
-                    ig += static_cast<int>(254.999f * std::fabs(normal.y));
-                    ib += static_cast<int>(254.999f * std::fabs(normal.z));
-                }
-            }
-
-            // Scaling down by the number of sample per pixel
-            ir = ir / spp;
-            ig = ig / spp;
-            ib = ib / spp;
-
-            auto index = static_cast<size_t>(j*imageWidth*4 + i*4);
-            data[index] = static_cast<unsigned char>(ir);
-            data[index+1] = static_cast<unsigned char>(ig);
-            data[index+2] = static_cast<unsigned char>(ib);
-            data[index+3] = static_cast<unsigned char>(255);
-        }
-    }
+    // Compute the image
+    renderer.render();
 
     // Create a OpenGL texture identifier
     GLuint image_texture;
@@ -157,7 +134,7 @@ int main() {
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 #endif
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getImagePointer());
 
 
     // ---------------------- Event loop handling ----------------------------------

@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include <miquella/core/object.h>
+#include <miquella/core/material.h>
 
 namespace miquella {
 
@@ -12,7 +13,7 @@ namespace core {
 class Sphere : public Object {
 
 public:
-    Sphere(glm::vec3 center, float r) : Object(),
+    Sphere(glm::vec3 center, float r, std::shared_ptr<Material> mat) : Object(mat),
         m_center(center), m_r(r){};
 
     virtual bool intersect(const Ray & r, float tmin, float tmax, hitRecord& record) override
@@ -38,6 +39,7 @@ public:
         record.t = root;
         record.p = r.at(record.t);
         record.normal = (record.p - m_center) / m_r;
+        record.material = m_material;
 
         return true;
     }
