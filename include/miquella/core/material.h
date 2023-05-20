@@ -21,6 +21,11 @@ public:
 
     virtual bool scatter(const Ray & incoming, const hitRecord& record, glm::vec3& color, Ray& out) const = 0;
 
+    virtual glm::vec3 emitted() const
+    {
+        return glm::vec3(0.0f, 0.0f, 0.0f);
+    }
+
 };
 
 

@@ -41,8 +41,22 @@ public:
     void setScene(std::shared_ptr<Scene> scene){ m_scene = scene; }
     void setCamera(std::shared_ptr<Camera> camera){ m_camera = camera; }
 
+    glm::vec3 getGradiantBackground(const Ray& r) const
+    {
+        // Color for the background which serves as the source of light
+        glm::vec3 dir = glm::normalize(r.direction());
+        auto t = 0.5f*(dir.y + 1.0f);
+        return (1.f-t)*glm::vec3(1.f,1.f, 1.f) + t*glm::vec3(0.5f, 0.7f, 1.f);
+    }
 
-    glm::vec3 processRay(const miquella::core::Ray& r, int maxDepth) const
+    glm::vec3 getBlackBackground(const Ray& r) const
+    {
+        (void)r;
+        return glm::vec3(0.f, 0.f, 0.f);
+    }
+
+
+    glm::vec3 processRay(const Ray& r, int maxDepth) const
     {
         hitRecord rec;
 
@@ -54,16 +68,16 @@ public:
         {
             miquella::core::Ray scatter;
             glm::vec3 attenuation;
+            glm::vec3 emitted = rec.material->emitted();
             if(rec.material->scatter(r, rec, attenuation, scatter))
-                return attenuation * processRay(scatter, maxDepth-1);
+                return emitted + attenuation * processRay(scatter, maxDepth-1);
             else
-                return glm::vec3(0.0, 0.0, 0.0);
+                return emitted;
         }
 
         // Color for the background which serves as the source of light
-        glm::vec3 dir = glm::normalize(r.direction());
-        auto t = 0.5f*(dir.y + 1.0f);
-        return (1.f-t)*glm::vec3(1.f,1.f, 1.f) + t*glm::vec3(0.5f, 0.7f, 1.f);
+        //return getGradiantBackground(r);
+        return getBlackBackground(r);
     }
 
     void render()
@@ -74,7 +88,7 @@ public:
             return;
         }
 
-        int maxDepth = 5;
+        int maxDepth = 10;
 
         auto startTime = std::chrono::steady_clock::now();
 

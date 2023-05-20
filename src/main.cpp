@@ -21,6 +21,7 @@
 #include <miquella/core/utility.h>
 #include <miquella/core/lambertian.h>
 #include <miquella/core/metal.h>
+#include <miquella/core/diffuseLight.h>
 
 // Useful ressources:
 // - https://github.com/retifrav/sdl-imgui-example
@@ -94,12 +95,17 @@ int main() {
     std::shared_ptr<miquella::core::Scene> scene = std::make_shared<miquella::core::Scene>();
     auto groundMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.8f, 0.8f, 0.0f));
     auto sphereMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.7f, 0.3f, 0.3f));
+
     auto sphereMatLeft = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.8f,0.8f), 1.f);
     auto sphereMatRight = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.6f,0.2f), 1.f);
     scene->addSphere(glm::vec3(0,0,-1), 0.5, sphereMat);
+
     scene->addSphere(glm::vec3(0,-100.5,-1), 100, groundMat);
     scene->addSphere(glm::vec3(-1.0, 0.0, -1.0), 0.5, sphereMatLeft);
     scene->addSphere(glm::vec3(1.0, 0.0, -1.0), 0.5, sphereMatRight);
+
+    auto sphereLight = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(1.f, 1.f, 1.f));
+    scene->addSphere(glm::vec3(0,1.5,-1), 0.5, sphereLight);
 
     const auto aspectRatio = 16.0f / 9.0f;
     //std::shared_ptr<miquella::core::SimpleCamera> camera = std::make_shared<miquella::core::SimpleCamera>();
