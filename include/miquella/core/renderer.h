@@ -9,6 +9,7 @@
 
 #include <numeric>
 #include <chrono>
+#include <algorithm>
 
 namespace miquella
 {
@@ -16,11 +17,22 @@ namespace miquella
 namespace core
 {
 
+enum class Background
+{
+    BLACK,
+    GRADIANT
+};
+
 class Renderer
 {
 public:
     Renderer(){}
-    Renderer(std::shared_ptr<Scene> scene, std::shared_ptr<Camera> camera) : m_scene(scene), m_camera(camera){}
+    Renderer(std::shared_ptr<Scene> scene, std::shared_ptr<Camera> camera) :
+        m_scene(scene),
+        m_camera(camera),
+        m_background(Background::BLACK){}
+
+    void setBackground(const Background& b){ m_background = b; }
 
     void setImageResolution(const int width, const int height)
     {
@@ -55,6 +67,23 @@ public:
         return glm::vec3(0.f, 0.f, 0.f);
     }
 
+    glm::vec3 getBackground(const Ray& r) const
+    {
+        switch(m_background)
+        {
+            case Background::BLACK:
+            {
+                return getBlackBackground(r);
+            }
+            case Background::GRADIANT:
+            {
+                return getGradiantBackground(r);
+            }
+            default:
+                return getBlackBackground(r);
+        }
+    }
+
 
     glm::vec3 processRay(const Ray& r, int maxDepth) const
     {
@@ -64,7 +93,7 @@ public:
             return glm::vec3(0.0, 0.0, 0.0);
 
         // Start at more than 0.0 to avoid self intersection
-        if(m_scene->intersect(r, 0.00001f, std::numeric_limits<float>::max(), rec))
+        if(m_scene->intersect(r, 0.001f, std::numeric_limits<float>::max(), rec))
         {
             miquella::core::Ray scatter;
             glm::vec3 attenuation;
@@ -76,8 +105,7 @@ public:
         }
 
         // Color for the background which serves as the source of light
-        //return getGradiantBackground(r);
-        return getBlackBackground(r);
+        return getBackground(r);
     }
 
     void render()
@@ -88,7 +116,7 @@ public:
             return;
         }
 
-        int maxDepth = 10;
+        int maxDepth = 5;
 
         auto startTime = std::chrono::steady_clock::now();
 
@@ -103,6 +131,9 @@ public:
                             );
 
                 glm::vec3 color = processRay(ray, maxDepth);
+                color.x = std::clamp(color.x, 0.f, 1.f);
+                color.y = std::clamp(color.y, 0.f, 1.f);
+                color.z = std::clamp(color.z, 0.f, 1.f);
 
 
                 auto indexAcc = static_cast<size_t>(j*m_width + i);
@@ -110,9 +141,10 @@ public:
 
                 glm::vec3 pixelColor = m_imageAccumulated[indexAcc] / static_cast<float>(nbFrameAccumulated);
 
-                int ir = static_cast<int>(254.999f * std::fabs(pixelColor.x));
-                int ig = static_cast<int>(254.999f * std::fabs(pixelColor.y));
-                int ib = static_cast<int>(254.999f * std::fabs(pixelColor.z));
+
+                int ir = static_cast<int>(255.999f * std::fabs(pixelColor.x));
+                int ig = static_cast<int>(255.999f * std::fabs(pixelColor.y));
+                int ib = static_cast<int>(255.999f * std::fabs(pixelColor.z));
 
                 auto index = static_cast<size_t>(j*m_width*4 + i*4);
                 m_image[index] = static_cast<unsigned char>(ir);
@@ -144,6 +176,8 @@ public:
 
     bool accumulate = true;
     size_t nbFrameAccumulated = 1;
+
+    Background m_background;
 };
 
 } // core

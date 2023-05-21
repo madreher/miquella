@@ -3,6 +3,7 @@
 #include <random>
 
 #include <glm/glm.hpp>
+#include <cstdlib>
 
 namespace miquella {
 
@@ -15,11 +16,28 @@ inline float degreeToRadians(float degrees)
     return degrees * pi / 180.0f;
 }
 
+#if 1
+inline float randomFloat()
+{
+    return static_cast<float>(rand()) / static_cast<float>((RAND_MAX + 1.0));
+}
+
+inline float randomFloat(float minValue, float maxValue)
+{
+    return minValue + (maxValue-minValue)*static_cast<float>(randomFloat());
+}
+#else
 inline float randomFloat(float minValue = 0.0f, float maxValue = 1.0f)
 {
     static std::uniform_real_distribution<float> distribution(minValue, maxValue);
     static std::mt19937 generator;
     return distribution(generator);
+}
+#endif
+
+inline glm::vec3 randomColor(float minValue = 0.f, float maxValue = 1.f)
+{
+    return glm::vec3(randomFloat(minValue, maxValue), randomFloat(minValue, maxValue), randomFloat(minValue, maxValue));
 }
 
 
@@ -39,7 +57,7 @@ inline glm::vec3 randomUnitVec3()
 inline glm::vec3 randomHemisphereVec3(const glm::vec3& normal)
 {
     auto result = randomUnitVec3();
-    if(glm::dot(normal, result) < 0.0f)
+    if(glm::dot(normal, result) > 0.0f)
         return -result;
     return result;
 }
@@ -47,7 +65,7 @@ inline glm::vec3 randomHemisphereVec3(const glm::vec3& normal)
 inline bool nearZeroVec3(const glm::vec3& vec)
 {
     const auto delta = 1e-8f;
-    return fabsf(vec.x) < delta && fabsf(vec.y) < delta && fabsf(vec.z) < delta;
+    return (fabsf(vec.x) < delta) && (fabsf(vec.y) < delta) && (fabsf(vec.z) < delta);
 }
 
 inline float clamp(float x, float min, float max) {

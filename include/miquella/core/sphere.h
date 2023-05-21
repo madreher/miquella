@@ -30,7 +30,8 @@ public:
 
         // Find the nearest root that lies in the acceptable range.
         auto root = (-half_b - sqrtd) / a;
-        if (root < tmin || tmax < root) {
+        if (root < tmin || tmax < root)
+        {
             root = (-half_b + sqrtd) / a;
             if (root < tmin || tmax < root)
                 return false;
@@ -38,7 +39,8 @@ public:
 
         record.t = root;
         record.p = r.at(record.t);
-        record.normal = (record.p - m_center) / m_r;
+        auto normal = (record.p - m_center) / m_r;
+        record.setFaceNormal(r, normal);
         record.material = m_material;
 
         return true;

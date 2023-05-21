@@ -27,10 +27,7 @@ public:
 
         record.t = t;
         auto normal = glm::vec3(0, 0, 1);
-        if(glm::dot(normal, r.direction()) < 0.f) // > 90
-            record.normal = -normal;
-        else                        // < 90
-            record.normal = normal;
+        record.setFaceNormal(r, normal);
         record.material = m_material;
         record.p = r.at(t);
         return true;
