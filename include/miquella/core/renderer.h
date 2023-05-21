@@ -124,7 +124,7 @@ public:
 
         auto endTime = std::chrono::steady_clock::now();
         m_executionTime = static_cast<size_t>(std::chrono::duration<double, std::milli>(endTime - startTime).count());
-        std::cout<<"Image computed in "<<m_executionTime<<" ms."<<std::endl;
+        //std::cout<<"Image computed in "<<m_executionTime<<" ms."<<std::endl;
 
         nbFrameAccumulated++;
     }

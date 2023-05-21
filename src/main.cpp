@@ -30,6 +30,107 @@
 // - https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples#Example-for-OpenGL-users
 // - https://github.com/CheerWizard/Gabriel
 
+
+void generateScene1(miquella::core::Renderer& renderer)
+{
+    std::shared_ptr<miquella::core::Scene> scene = std::make_shared<miquella::core::Scene>();
+    auto groundMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.8f, 0.8f, 0.0f));
+    auto sphereMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.7f, 0.3f, 0.3f));
+    auto sphereMatLeft = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.8f,0.8f), 1.f);
+    auto sphereMatRight = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.6f,0.2f), 1.f);
+
+    auto groundSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,-100.5,-1), 0.5, groundMat);
+    auto centerSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,0,-1), 0.5, sphereMat);
+    auto leftSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(-1.0, 0.0, -1.0), 0.5, sphereMatLeft);
+    auto rightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(1.0, 0.0, -1.0), 0.5, sphereMatRight);
+
+    auto sphereLightMat = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(1.f, 1.f, 1.f));
+    auto lightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,1.5,-1), 0.5, sphereLightMat);
+
+    scene->addObject(groundSphere);
+    scene->addObject(centerSphere);
+    scene->addObject(leftSphere);
+    scene->addObject(rightSphere);
+    scene->addObject(lightSphere);
+
+    const auto aspectRatio = 16.0f / 9.0f;
+    //std::shared_ptr<miquella::core::SimpleCamera> camera = std::make_shared<miquella::core::SimpleCamera>();
+
+    glm::vec3 lookFrom = {3.f, 3.f, 2.f};
+    glm::vec3 lookAt = {0.f, 0.f, -1.f};
+    std::shared_ptr<miquella::core::LookAtCamera> camera = std::make_shared<miquella::core::LookAtCamera>(
+                lookFrom,
+                lookAt,
+                glm::vec3{0.f, 1.f, 0.f},
+                20.f,
+                aspectRatio,
+                2.f,
+                glm::distance(lookFrom, lookAt));
+
+
+
+
+    renderer.setCamera(camera);
+    renderer.setScene(scene);
+}
+
+void generateScene2(miquella::core::Renderer& renderer)
+{
+    std::shared_ptr<miquella::core::Scene> scene = std::make_shared<miquella::core::Scene>();
+
+    auto sphereLight = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(1.f, 1.f, 1.f));
+    auto lightRadius = 1.0f;
+    auto light = std::make_shared<miquella::core::Sphere>(glm::vec3(0,0,0), lightRadius, sphereLight);
+    scene->addObject(light);
+
+    for(size_t i = 0; i< 10; ++i)
+    {
+        auto x = miquella::core::randomFloat(-3.0f, 3.0f);
+        auto y = miquella::core::randomFloat(-3.0f, 3.0f);
+        auto z = miquella::core::randomFloat(-3.0f, 3.0f);
+
+        // Prevent spheres in the light source
+        while((x < lightRadius && x > -lightRadius)  ||
+              (y < lightRadius && y > -lightRadius)  ||
+              (z < lightRadius && z > -lightRadius))
+        {
+            x = miquella::core::randomFloat(-3.0f, 3.0f);
+            y = miquella::core::randomFloat(-3.0f, 3.0f);
+            z = miquella::core::randomFloat(-3.0f, 3.0f);
+        }
+
+        auto r = miquella::core::randomFloat(0.0f, 1.0f);
+        auto g = miquella::core::randomFloat(0.0f, 1.0f);
+        auto b = miquella::core::randomFloat(0.0f, 1.0f);
+
+        auto mat = std::make_shared<miquella::core::Lambertian>(glm::vec3(r, g, b));
+        std::cout<<"Sphere "<<i<<" ("<<x<<","<<y<<","<<z<<")"<<std::endl;
+        auto sphere = std::make_shared<miquella::core::Sphere>(glm::vec3(x,y,z), 0.5, mat);
+        scene->addObject(sphere);
+    }
+
+    const auto aspectRatio = 16.0f / 9.0f;
+    //std::shared_ptr<miquella::core::SimpleCamera> camera = std::make_shared<miquella::core::SimpleCamera>();
+
+    glm::vec3 lookFrom = {6.f, 6.f, 6.f};
+    glm::vec3 lookAt = {0.f, 0.f, 0.f};
+    std::shared_ptr<miquella::core::LookAtCamera> camera = std::make_shared<miquella::core::LookAtCamera>(
+                lookFrom,
+                lookAt,
+                glm::vec3{0.f, 1.f, 0.f},
+                20.f,
+                aspectRatio,
+                2.f,
+                glm::distance(lookFrom, lookAt));
+
+
+    renderer.setCamera(camera);
+    renderer.setScene(scene);
+}
+
+
+
+
 using namespace gl;
 
 int main() {
@@ -92,45 +193,15 @@ int main() {
     ImGui::StyleColorsDark();
 
     // ---------------------- Scene setup ----------------------------------
-    std::shared_ptr<miquella::core::Scene> scene = std::make_shared<miquella::core::Scene>();
-    auto groundMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.8f, 0.8f, 0.0f));
-    auto sphereMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.7f, 0.3f, 0.3f));
-
-    auto sphereMatLeft = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.8f,0.8f), 1.f);
-    auto sphereMatRight = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.6f,0.2f), 1.f);
-    scene->addSphere(glm::vec3(0,0,-1), 0.5, sphereMat);
-
-    scene->addSphere(glm::vec3(0,-100.5,-1), 100, groundMat);
-    scene->addSphere(glm::vec3(-1.0, 0.0, -1.0), 0.5, sphereMatLeft);
-    scene->addSphere(glm::vec3(1.0, 0.0, -1.0), 0.5, sphereMatRight);
-
-    auto sphereLight = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(1.f, 1.f, 1.f));
-    scene->addSphere(glm::vec3(0,1.5,-1), 0.5, sphereLight);
-
-    const auto aspectRatio = 16.0f / 9.0f;
-    //std::shared_ptr<miquella::core::SimpleCamera> camera = std::make_shared<miquella::core::SimpleCamera>();
-
-    glm::vec3 lookFrom = {3.f, 3.f, 2.f};
-    glm::vec3 lookAt = {0.f, 0.f, -1.f};
-    std::shared_ptr<miquella::core::LookAtCamera> camera = std::make_shared<miquella::core::LookAtCamera>(
-                lookFrom,
-                lookAt,
-                glm::vec3{0.f, 1.f, 0.f},
-                20.f,
-                aspectRatio,
-                2.f,
-                glm::distance(lookFrom, lookAt));
-
-
+    miquella::core::Renderer renderer;
+    generateScene1(renderer);
+    //generateScene2(renderer);
 
     // ---------------------- Ray tracing time ----------------------------------
-    miquella::core::Renderer renderer;
-    renderer.setCamera(camera);
-    renderer.setScene(scene);
-
     // Create a picture on CPU side
 
     int imageWidth = 600;
+    const auto aspectRatio = 16.0f / 9.0f;
     int imageHeight = static_cast<int>(static_cast<float>(imageWidth) / aspectRatio);
 
     renderer.setImageResolution(imageWidth, imageHeight);

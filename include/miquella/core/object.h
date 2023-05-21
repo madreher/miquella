@@ -26,6 +26,14 @@ public:
         m_material = material;
     }
 
+    virtual bool isLightSource() const
+    {
+        if(m_material)
+            return m_material->isLightSource();
+
+        return false;
+    }
+
 public:
     std::shared_ptr<Material> m_material;
 };

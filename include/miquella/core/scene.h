@@ -14,9 +14,12 @@ class Scene
 public:
     Scene(){}
 
-    void addSphere(const glm::vec3 & center, float radius, std::shared_ptr<Material> mat)
+    void addObject(std::shared_ptr<Object> obj)
     {
-        spheres.emplace_back(center, radius, mat);
+        m_objects.push_back(obj);
+
+        if(obj->isLightSource())
+            m_lights.push_back(obj);
     }
 
     bool intersect(const Ray & r, float tmin, float tmax, hitRecord& record)
@@ -24,9 +27,9 @@ public:
         hitRecord localRecord;
         bool hitFound = false;
         float currentMax = tmax;
-        for(auto & sphere : spheres)
+        for(auto & obj : m_objects)
         {
-            if(sphere.intersect(r, tmin, currentMax, localRecord))
+            if(obj->intersect(r, tmin, currentMax, localRecord))
             {
                 hitFound = true;
                 currentMax = localRecord.t;
@@ -38,7 +41,9 @@ public:
     }
 
 public:
-    std::vector<Sphere> spheres;
+    std::vector<std::shared_ptr<Object>> m_objects;
+
+    std::vector<std::shared_ptr<Object>> m_lights;
 };
 
 } // core

@@ -26,6 +26,11 @@ public:
         return glm::vec3(0.0f, 0.0f, 0.0f);
     }
 
+    virtual bool isLightSource() const
+    {
+        return false;
+    }
+
 };
 
 

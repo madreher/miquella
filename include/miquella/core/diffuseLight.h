@@ -28,6 +28,10 @@ public:
         return m_albedo;
     }
 
+    virtual bool isLightSource() const override
+    {
+        return true;
+    }
 
 
 
