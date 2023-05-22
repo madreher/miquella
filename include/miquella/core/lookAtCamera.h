@@ -20,8 +20,12 @@ class LookAtCamera : public Camera {
                 float vfov, // vertical field of view in degrees
                 float aspectRatio,
                 float aperture,
-                float focusDistance)
+                float focusDistance,
+                int width)
         {
+            m_imageWidth = width;
+            m_imageHeight = static_cast<int>(static_cast<float>(m_imageWidth) / aspectRatio);
+
             auto theta = degToRad(vfov);
             float h = tan(theta/2.f);
             auto viewportHeight = 2.0f * h;

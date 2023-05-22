@@ -10,6 +10,7 @@
 #include <numeric>
 #include <chrono>
 #include <algorithm>
+#include <string.h>
 
 namespace miquella
 {
@@ -34,24 +35,24 @@ public:
 
     void setBackground(const Background& b){ m_background = b; }
 
-    void setImageResolution(const int width, const int height)
+    void updateImageFromCamera()
     {
         assert(m_camera);
-        m_width = width;
-        m_height = height;
-
-        if( auto c = std::dynamic_pointer_cast<SimpleCamera>(m_camera))
-        {
-            c->setAspectRatio(static_cast<float>(m_width) / static_cast<float>(m_height));
-        }
-
+        m_width = m_camera->getImageWidth();
+        m_height = m_camera->getImageHeight();
 
         m_image.resize(static_cast<size_t>(m_width * m_height * 4));
+        memset(m_image.data(), 0, static_cast<size_t>(m_width * m_height * 4) * sizeof(unsigned char));
         m_imageAccumulated.resize(static_cast<size_t>(m_width * m_height));
+        memset(m_imageAccumulated.data(), 0, static_cast<size_t>(m_width * m_height) * sizeof(glm::vec3));
     }
 
     void setScene(std::shared_ptr<Scene> scene){ m_scene = scene; }
-    void setCamera(std::shared_ptr<Camera> camera){ m_camera = camera; }
+    void setCamera(std::shared_ptr<Camera> camera)
+    {
+        m_camera = camera;
+        updateImageFromCamera();
+    }
 
     glm::vec3 getGradiantBackground(const Ray& r) const
     {
@@ -156,12 +157,14 @@ public:
 
         auto endTime = std::chrono::steady_clock::now();
         m_executionTime = static_cast<size_t>(std::chrono::duration<double, std::milli>(endTime - startTime).count());
-        //std::cout<<"Image computed in "<<m_executionTime<<" ms."<<std::endl;
+        std::cout<<"Image computed in "<<m_executionTime<<" ms."<<std::endl;
 
         nbFrameAccumulated++;
     }
 
     unsigned char* getImagePointer(){ return m_image.data(); }
+    int getImageWidth() const { return m_camera->getImageWidth(); }
+    int getImageHeight() const { return m_camera->getImageHeight(); }
 
 public:
     std::shared_ptr<Scene> m_scene;

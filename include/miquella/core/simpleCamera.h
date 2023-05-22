@@ -15,13 +15,17 @@ class SimpleCamera : public Camera {
         SimpleCamera() : Camera()
         {
             auto aspect_ratio = 16.0f / 9.0f;
-            setAspectRatio(aspect_ratio);
+            setAspectRatio(aspect_ratio, 800);
         }
 
         virtual ~SimpleCamera(){}
 
-        void setAspectRatio(float ratio)
+
+        void setAspectRatio(float ratio, int imageWidth)
         {
+            m_imageWidth = imageWidth;
+            m_imageHeight = static_cast<int>(static_cast<float>(m_imageWidth) / ratio);
+
             auto viewport_height = 2.0f;
             auto viewport_width = ratio * viewport_height;
             auto focal_length = 1.0f;
@@ -42,6 +46,7 @@ class SimpleCamera : public Camera {
         glm::vec3 m_lower_left_corner;
         glm::vec3 m_horizontal;
         glm::vec3 m_vertical;
+
 };
 
 } // core

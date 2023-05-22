@@ -20,7 +20,7 @@ inline float degreeToRadians(float degrees)
     return degrees * pi / 180.0f;
 }
 
-#if 0
+#if 1
 inline float randomFloat()
 {
     return static_cast<float>(rand()) / static_cast<float>((RAND_MAX + 1.0));
@@ -66,7 +66,7 @@ inline glm::vec3 randomHemisphereVec3(const glm::vec3& normal)
 
 inline bool nearZeroVec3(const glm::vec3& vec)
 {
-    const auto delta = 1e-8f;
+    const auto delta = 1e-10f;
     return (fabsf(vec.x) < delta) && (fabsf(vec.y) < delta) && (fabsf(vec.z) < delta);
 }
 

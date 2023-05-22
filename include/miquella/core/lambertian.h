@@ -17,7 +17,7 @@ public:
     virtual bool scatter(const Ray & incoming, const hitRecord& record, glm::vec3& color, Ray& out) const override
     {
         (void)incoming;
-        auto direction = record.normal + randomHemisphereVec3(record.normal);
+        auto direction = record.normal + randomUnitVec3();
 
         // Catch degenerate case (See RayTracingInOneWeekend Section 9.3)
         if(nearZeroVec3(direction))
