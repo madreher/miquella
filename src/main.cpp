@@ -325,12 +325,12 @@ void generateEmptyCornell(miquella::core::Renderer& renderer)
     auto red = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.65f, 0.05f, 0.05f));
     auto white = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.73f, 0.73f, 0.73f));
     auto green = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.12f, 0.45f, 0.15f));
-    auto light = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(1.f, 1.f, 1.f));
+    auto light = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(15.f, 15.f, 15.f));
 
     auto left = std::make_shared<miquella::core::yzRectangle>(0.f, 555.f, 0.f, 555.f, 555.f, green);
     auto right = std::make_shared<miquella::core::yzRectangle>(0.f, 555.f, 0.f, 555.f, 0.f, red);
-    //auto lightO = std::make_shared<miquella::core::xzRectangle>(213.f, 343.f, 227.f, 332.f, 554.f, light);
-    auto lightO = std::make_shared<miquella::core::xzRectangle>(0.f, 555.f, 0.f, 555.f, 554.f, light);
+    auto lightO = std::make_shared<miquella::core::xzRectangle>(213.f, 343.f, 227.f, 332.f, 554.f, light);
+    //auto lightO = std::make_shared<miquella::core::xzRectangle>(0.f, 555.f, 0.f, 555.f, 554.f, light);
     auto floor = std::make_shared<miquella::core::xzRectangle>(0.f, 555.f, 0.f, 555.f, 0.f, white);
     auto roof = std::make_shared<miquella::core::xzRectangle>(0.f, 555.f, 0.f, 555.f, 555.f, white);
     auto back = std::make_shared<miquella::core::xyRectangle>(0.f, 555.f, 0.f, 555.f, 555.f, white);
@@ -341,6 +341,54 @@ void generateEmptyCornell(miquella::core::Renderer& renderer)
     scene->addObject(floor);
     scene->addObject(roof);
     scene->addObject(back);
+
+    const auto aspectRatio = 1.f;
+    glm::vec3 lookFrom = {278.f, 278.f, -800.f};
+    glm::vec3 lookAt = {278.f, 278.f, 0.f};
+    std::shared_ptr<miquella::core::LookAtCamera> camera = std::make_shared<miquella::core::LookAtCamera>(
+                lookFrom,
+                lookAt,
+                glm::vec3{0.f, 1.f, 0.f},
+                40.f,
+                aspectRatio,
+                2.f,
+                glm::distance(lookFrom, lookAt),
+                600);
+
+    renderer.setCamera(camera);
+    renderer.setScene(scene);
+    renderer.setBackground(miquella::core::Background::BLACK);
+}
+
+void generateGlassCornell(miquella::core::Renderer& renderer)
+{
+    std::shared_ptr<miquella::core::Scene> scene = std::make_shared<miquella::core::Scene>();
+
+    auto red = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.65f, 0.05f, 0.05f));
+    auto white = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.73f, 0.73f, 0.73f));
+    auto green = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.12f, 0.45f, 0.15f));
+    auto light = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(15.f, 15.f, 15.f));
+    auto glassLeftMat = std::make_shared<miquella::core::Dielectric>(1.9);
+    auto glassRightMat = std::make_shared<miquella::core::Dielectric>(1.5);
+
+    auto left = std::make_shared<miquella::core::yzRectangle>(0.f, 555.f, 0.f, 555.f, 555.f, green);
+    auto right = std::make_shared<miquella::core::yzRectangle>(0.f, 555.f, 0.f, 555.f, 0.f, red);
+    auto lightO = std::make_shared<miquella::core::xzRectangle>(213.f, 343.f, 227.f, 332.f, 554.f, light);
+    //auto lightO = std::make_shared<miquella::core::xzRectangle>(0.f, 555.f, 0.f, 555.f, 554.f, light);
+    auto floor = std::make_shared<miquella::core::xzRectangle>(0.f, 555.f, 0.f, 555.f, 0.f, white);
+    auto roof = std::make_shared<miquella::core::xzRectangle>(0.f, 555.f, 0.f, 555.f, 555.f, white);
+    auto back = std::make_shared<miquella::core::xyRectangle>(0.f, 555.f, 0.f, 555.f, 555.f, white);
+    auto glassLeft = std::make_shared<miquella::core::Sphere>(glm::vec3(430.f, 100.f, 350.f), 100.f, glassLeftMat);
+    auto glassRight = std::make_shared<miquella::core::Sphere>(glm::vec3(120.f, 100.f, 200.f), 100.f, glassRightMat);
+
+    scene->addObject(left);
+    scene->addObject(right);
+    scene->addObject(lightO);
+    scene->addObject(floor);
+    //scene->addObject(roof);
+    scene->addObject(back);
+    scene->addObject(glassLeft);
+    scene->addObject(glassRight);
 
     const auto aspectRatio = 1.f;
     glm::vec3 lookFrom = {278.f, 278.f, -800.f};
@@ -425,11 +473,12 @@ int main() {
     miquella::core::Renderer renderer;
     //generateScene1(renderer);             // 3 balls
     //generateScene2(renderer);             // Random balls
-    generateScene3(renderer);             // Test rectangle light
+    //generateScene3(renderer);             // Test rectangle light
     //generateScene4(renderer);             // RaytracingOneWeekend final scene
     //generateScene5(renderer);             // Lambertien test
     //generateScene6(renderer);             // Dielectric
-    //generateEmptyCornell(renderer);       // Cornel
+    generateEmptyCornell(renderer);       // Empty cornel
+    //generateGlassCornell(renderer);         // Cornel with spheres of glass
 
     // ---------------------- Ray tracing time ----------------------------------
     // Create a picture on CPU side

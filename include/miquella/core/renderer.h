@@ -117,7 +117,7 @@ public:
             return;
         }
 
-        int maxDepth = 5;
+        int maxDepth = 8;
 
         auto startTime = std::chrono::steady_clock::now();
 
@@ -132,20 +132,21 @@ public:
                             );
 
                 glm::vec3 color = processRay(ray, maxDepth);
-                color.x = std::clamp(color.x, 0.f, 1.f);
-                color.y = std::clamp(color.y, 0.f, 1.f);
-                color.z = std::clamp(color.z, 0.f, 1.f);
-
 
                 auto indexAcc = static_cast<size_t>(j*m_width + i);
                 m_imageAccumulated[indexAcc] += color;
 
-                glm::vec3 pixelColor = m_imageAccumulated[indexAcc] / static_cast<float>(nbFrameAccumulated);
+                // Gamma correction
+                auto scale = 1.f / static_cast<float>(nbFrameAccumulated+1);
+                auto r = sqrtf(m_imageAccumulated[indexAcc].x * scale);
+                auto g = sqrtf(m_imageAccumulated[indexAcc].y * scale);
+                auto b = sqrtf(m_imageAccumulated[indexAcc].z * scale);
 
 
-                int ir = static_cast<int>(255.999f * std::fabs(pixelColor.x));
-                int ig = static_cast<int>(255.999f * std::fabs(pixelColor.y));
-                int ib = static_cast<int>(255.999f * std::fabs(pixelColor.z));
+
+                int ir = static_cast<int>(256.f * std::clamp(r, 0.0f, 0.999f));
+                int ig = static_cast<int>(256.f * std::clamp(g, 0.0f, 0.999f));
+                int ib = static_cast<int>(256.f * std::clamp(b, 0.0f, 0.999f));
 
                 auto index = static_cast<size_t>(j*m_width*4 + i*4);
                 m_image[index] = static_cast<unsigned char>(ir);
@@ -157,7 +158,7 @@ public:
 
         auto endTime = std::chrono::steady_clock::now();
         m_executionTime = static_cast<size_t>(std::chrono::duration<double, std::milli>(endTime - startTime).count());
-        std::cout<<"Image computed in "<<m_executionTime<<" ms."<<std::endl;
+        std::cout<<"Sample "<<nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms."<<std::endl;
 
         nbFrameAccumulated++;
     }

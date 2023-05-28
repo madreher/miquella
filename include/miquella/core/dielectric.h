@@ -34,7 +34,7 @@ public:
 
         bool cannotRefract = refractionRatio * sinTheta > 1.f;
         glm::vec3 direction;
-        if(cannotRefract)
+        if(cannotRefract || _reflectance(cosTheta, refractionRatio) > randomFloat())
             direction = _reflect(incoming.direction(), record.normal);
         else
             direction = _refract(dir, record.normal, refractionRatio);
@@ -44,6 +44,14 @@ public:
     }
 
 private:
+    float _reflectance(float cosine, float refIdx) const
+    {
+        // Schlick's approximation for reflectance
+        auto r0 = (1.f - refIdx) / (1.f + refIdx);
+        r0 = r0*r0;
+        return r0 + (1.f-r0)*powf((1.f - cosine), 5);
+    }
+
     glm::vec3 _refract(const glm::vec3& in, const glm::vec3& normal, float etaiOverEtat) const
     {
         auto cosTheta = fminf(glm::dot(-in, normal), 1.f);
