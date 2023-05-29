@@ -80,7 +80,7 @@ target_link_libraries( MQ_project_libraries
         CONAN_PKG::glm
         CONAN_PKG::spdlog
 	CONAN_PKG::sdl
-        #CONAN_PKG::glad
+        CONAN_PKG::lyra
         CONAN_PKG::glbinding
         stdc++fs
 )

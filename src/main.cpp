@@ -13,6 +13,8 @@
 #include <imgui_impl_opengl3.h>
 #include <SDL.h>
 
+#include <lyra/lyra.hpp>
+
 #include <miquella/core/ray.h>
 #include <miquella/core/simpleCamera.h>
 #include <miquella/core/lookAtCamera.h>
@@ -408,7 +410,38 @@ void generateGlassCornell(miquella::core::Renderer& renderer)
     renderer.setBackground(miquella::core::Background::BLACK);
 }
 
-int main() {
+int main(int argc, char** argv)
+{
+
+    size_t sceneID = 0;
+
+    std::vector<void (*)(miquella::core::Renderer&)> scenes;
+    scenes.push_back(generateScene1);
+    scenes.push_back(generateScene2);
+    scenes.push_back(generateScene3);
+    scenes.push_back(generateScene4);
+    scenes.push_back(generateScene5);
+    scenes.push_back(generateScene6);
+    scenes.push_back(generateEmptyCornell);
+    scenes.push_back(generateGlassCornell);
+
+    auto cli = lyra::cli()
+        | lyra::opt( sceneID, "sceneid" )
+            ["--scene-id"]
+            ("0: 3 balls, 1: random balls, 2: rectangle light, 3: RaytracingOneWeekend, 4: Lambertien test, 5: Dieletric test, 6: Empty cornel, 7: Glass cornel");
+
+    auto result = cli.parse( { argc, argv } );
+    if ( !result )
+    {
+        std::cerr << "Error in command line: " << result.errorMessage() << std::endl;
+        exit(1);
+    }
+
+    if(sceneID >= scenes.size())
+    {
+        std::cerr << "Error: Scene ID does not exist." << std::endl;
+        exit(1);
+    }
 
     srand(static_cast<unsigned int>(time(nullptr)));
 
@@ -471,13 +504,14 @@ int main() {
 
     // ---------------------- Scene setup ----------------------------------
     miquella::core::Renderer renderer;
+    scenes[sceneID](renderer);
     //generateScene1(renderer);             // 3 balls
     //generateScene2(renderer);             // Random balls
     //generateScene3(renderer);             // Test rectangle light
     //generateScene4(renderer);             // RaytracingOneWeekend final scene
     //generateScene5(renderer);             // Lambertien test
     //generateScene6(renderer);             // Dielectric
-    generateEmptyCornell(renderer);       // Empty cornel
+    //generateEmptyCornell(renderer);       // Empty cornel
     //generateGlassCornell(renderer);         // Cornel with spheres of glass
 
     // ---------------------- Ray tracing time ----------------------------------
