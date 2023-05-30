@@ -20,6 +20,7 @@
 #include <miquella/core/lookAtCamera.h>
 #include <miquella/core/scene.h>
 #include <miquella/core/renderer.h>
+#include <miquella/core/rendererThreads.h>
 #include <miquella/core/utility.h>
 #include <miquella/core/lambertian.h>
 #include <miquella/core/metal.h>
@@ -413,7 +414,7 @@ void generateGlassCornell(miquella::core::Renderer& renderer)
 int main(int argc, char** argv)
 {
 
-    size_t sceneID = 0;
+    size_t sceneID = 3;
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
     scenes.push_back(generateScene1);
@@ -503,7 +504,8 @@ int main(int argc, char** argv)
     ImGui::StyleColorsDark();
 
     // ---------------------- Scene setup ----------------------------------
-    miquella::core::Renderer renderer;
+    //miquella::core::Renderer renderer;
+    miquella::core::RendererThreads renderer;
     scenes[sceneID](renderer);
     //generateScene1(renderer);             // 3 balls
     //generateScene2(renderer);             // Random balls

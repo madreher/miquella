@@ -33,9 +33,11 @@ public:
         m_camera(camera),
         m_background(Background::BLACK){}
 
+    virtual ~Renderer(){}
+
     void setBackground(const Background& b){ m_background = b; }
 
-    void updateImageFromCamera()
+    virtual void updateImageFromCamera()
     {
         assert(m_camera);
         m_width = m_camera->getImageWidth();
@@ -109,7 +111,7 @@ public:
         return getBackground(r);
     }
 
-    void render()
+    virtual void render()
     {
         if(m_image.size() == 0 || m_image.size() != static_cast<size_t>(m_height*m_width*4))
         {
@@ -117,7 +119,7 @@ public:
             return;
         }
 
-        int maxDepth = 8;
+        int maxDepth = 5;
 
         auto startTime = std::chrono::steady_clock::now();
 

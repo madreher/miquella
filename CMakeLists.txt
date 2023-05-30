@@ -82,6 +82,7 @@ target_link_libraries( MQ_project_libraries
 	CONAN_PKG::sdl
         CONAN_PKG::lyra
         CONAN_PKG::glbinding
+        CONAN_PKG::bshoshany-thread-pool
         stdc++fs
 )
 
