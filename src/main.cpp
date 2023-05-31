@@ -414,7 +414,7 @@ void generateGlassCornell(miquella::core::Renderer& renderer)
 int main(int argc, char** argv)
 {
 
-    size_t sceneID = 3;
+    size_t sceneID = 4;
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
     scenes.push_back(generateScene1);

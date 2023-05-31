@@ -11,16 +11,16 @@ namespace core {
 
 const float pi = 3.1415926535897932385f;
 
-std::random_device rd;
-std::mt19937 generator = std::mt19937(rd());
-std::uniform_real_distribution<float> distribution(0.f, 1.f);
+thread_local std::random_device rd;
+thread_local std::mt19937 generator = std::mt19937(rd());
+thread_local std::uniform_real_distribution<float> distribution(0.f, 1.f);
 
 inline float degreeToRadians(float degrees)
 {
     return degrees * pi / 180.0f;
 }
 
-#if 1
+#if 0
 inline float randomFloat()
 {
     return static_cast<float>(rand()) / static_cast<float>((RAND_MAX + 1.0));

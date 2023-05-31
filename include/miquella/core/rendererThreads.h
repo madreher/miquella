@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <BS_thread_pool.hpp>
 //#include <execution>  // Not available with gcc8/9
+#include <chrono>
 
 namespace miquella
 {
@@ -44,11 +45,12 @@ public:
 
         //for (int j = m_height-1; j >= 0; --j)
 
-        // Will not work with Ubuntu 18, gcc is too old
+        // Will not work with Ubuntu 18, gcc 7 and 8 too old, need 10 minimum
         //std::for_each(std::execution::par_unseq, std::begin(m_heightIndexes), std::end(m_heightIndexes), [&](int j))
 
         auto loop = [this, maxDepth](const int start, const int end)
         {
+            auto startTask = std::chrono::high_resolution_clock::now();
             for (int i = start; i < end; ++i)
             {
                 for(int j = 0; j < m_height; j++)
@@ -83,6 +85,9 @@ public:
                     m_image[index+3] = static_cast<unsigned char>(255);
                 }
             }
+            auto endTask = std::chrono::high_resolution_clock::now();
+            auto taskDuration = std::chrono::duration<double, std::milli>(endTask-startTask);
+            //std::cout<<"[Sample "<<nbFrameAccumulated<<"] Task completed in "<<taskDuration.count()<<" ms."<<std::endl;
         };
 
 
