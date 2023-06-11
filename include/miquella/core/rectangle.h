@@ -15,6 +15,11 @@ public:
     xyRectangle(float x0, float x1, float y0, float y1, float z, std::shared_ptr<Material> mat) :
         Object(mat), m_x0(x0), m_x1(x1), m_y0(y0), m_y1(y1), m_z(z){};
 
+    virtual std::shared_ptr<Object> clone() override
+    {
+        return std::make_shared<xyRectangle>(m_x0, m_x1, m_y0, m_y1, m_z, m_material->clone());
+    }
+
     virtual bool intersect(const Ray & r, float tmin, float tmax, hitRecord& record) override
     {
         auto t = (m_z - r.origin().z) / r.direction().z;
@@ -66,6 +71,11 @@ public:
         return true;
     }
 
+    virtual std::shared_ptr<Object> clone() override
+    {
+        return std::make_shared<xzRectangle>(m_x0, m_x1, m_z0, m_z1, m_y, m_material->clone());
+    }
+
 public:
     float m_x0;
     float m_x1;
@@ -97,6 +107,10 @@ public:
         record.material = m_material;
         record.p = r.at(t);
         return true;
+    }
+    virtual std::shared_ptr<Object> clone() override
+    {
+        return std::make_shared<yzRectangle>(m_y0, m_y1, m_z0, m_z1, m_x, m_material->clone());
     }
 
 public:

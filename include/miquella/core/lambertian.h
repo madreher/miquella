@@ -29,6 +29,11 @@ public:
         return true;
     }
 
+    virtual std::shared_ptr<Material> clone() override
+    {
+        return std::make_shared<Lambertian>(m_albedo);
+    }
+
 
 public:
     glm::vec3 m_albedo;

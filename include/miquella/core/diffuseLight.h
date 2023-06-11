@@ -33,6 +33,11 @@ public:
         return true;
     }
 
+    virtual std::shared_ptr<Material> clone() override
+    {
+        return std::make_shared<DiffuseLight>(m_albedo);
+    }
+
 
 
 public:

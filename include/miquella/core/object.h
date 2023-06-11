@@ -34,6 +34,9 @@ public:
         return false;
     }
 
+    virtual std::shared_ptr<Object> clone() = 0;
+   
+
 public:
     std::shared_ptr<Material> m_material;
 };

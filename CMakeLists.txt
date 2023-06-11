@@ -74,7 +74,17 @@ add_library(MQ_project_libraries INTERFACE )
 target_include_directories( MQ_project_libraries
     INTERFACE
         ${CMAKE_SOURCE_DIR}/include)
-
+if(WIN32)
+target_link_libraries( MQ_project_libraries
+    INTERFACE
+        CONAN_PKG::glm
+        CONAN_PKG::spdlog
+	CONAN_PKG::sdl
+        CONAN_PKG::lyra
+        CONAN_PKG::glbinding
+        CONAN_PKG::bshoshany-thread-pool
+)
+else()
 target_link_libraries( MQ_project_libraries
     INTERFACE
         CONAN_PKG::glm
@@ -85,6 +95,7 @@ target_link_libraries( MQ_project_libraries
         CONAN_PKG::bshoshany-thread-pool
         stdc++fs
 )
+endif()
 
 #########################################################
 # Build IMGUI

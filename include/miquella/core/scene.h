@@ -14,6 +14,8 @@ class Scene
 public:
     Scene(){}
 
+    virtual ~Scene(){}
+
     void addObject(std::shared_ptr<Object> obj)
     {
         m_objects.push_back(obj);
@@ -38,6 +40,18 @@ public:
         }
 
         return hitFound;
+    }
+
+    virtual std::shared_ptr<Scene> clone() 
+    {
+        auto copy = std::make_shared<Scene>();
+        for (auto& obj : m_objects)
+            copy->m_objects.push_back(obj->clone());
+
+        for (auto& light : m_lights)
+            copy->m_lights.push_back(light->clone());
+
+        return copy;
     }
 
 public:

@@ -27,6 +27,11 @@ public:
         return glm::dot(out.direction(), record.normal) > 0.f;
     }
 
+    virtual std::shared_ptr<Material> clone() override
+    {
+        return std::make_shared<Metal>(m_albedo, m_fuzz);
+    }
+
 private:
     glm::vec3 _reflect(const glm::vec3& in, const glm::vec3& normal) const
     {

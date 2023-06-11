@@ -50,12 +50,12 @@ void generateScene1(miquella::core::Renderer& renderer)
     auto sphereMatRight = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.6f,0.2f), 1.f);
 
     auto groundSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,-100.5,-1), 100.f, groundMat);
-    auto centerSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,0,-1), 0.5, sphereMat);
-    auto leftSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(-1.0, 0.0, -1.0), 0.5, sphereMatLeft);
-    auto rightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(1.0, 0.0, -1.0), 0.5, sphereMatRight);
+    auto centerSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,0,-1), 0.5f, sphereMat);
+    auto leftSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(-1.0, 0.0, -1.0), 0.5f, sphereMatLeft);
+    auto rightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(1.0, 0.0, -1.0), 0.5f, sphereMatRight);
 
     auto sphereLightMat = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(1.f, 1.f, 1.f));
-    auto lightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,1.5,-1), 0.5, sphereLightMat);
+    auto lightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,1.5,-1), 0.5f, sphereLightMat);
 
     scene->addObject(groundSphere);
     scene->addObject(centerSphere);
@@ -117,7 +117,7 @@ void generateScene2(miquella::core::Renderer& renderer)
 
         auto mat = std::make_shared<miquella::core::Lambertian>(glm::vec3(r, g, b));
         std::cout<<"Sphere "<<i<<" ("<<x<<","<<y<<","<<z<<")"<<std::endl;
-        auto sphere = std::make_shared<miquella::core::Sphere>(glm::vec3(x,y,z), 0.5, mat);
+        auto sphere = std::make_shared<miquella::core::Sphere>(glm::vec3(x,y,z), 0.5f, mat);
         scene->addObject(sphere);
     }
 
@@ -149,11 +149,11 @@ void generateScene3(miquella::core::Renderer& renderer)
     auto sphereMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.7f, 0.3f, 0.3f));
 
     auto groundSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,-1000.f,0), 1000.f, groundMat);
-    auto centerSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,2,0), 2, sphereMat);
+    auto centerSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,2,0), 2.f, sphereMat);
 
     auto difflight = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(4,4,4));
-    auto lightRect = std::make_shared<miquella::core::xyRectangle>(3, 5, 1, 3, -2, difflight);
-    auto lightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,7,0), 2, difflight);
+    auto lightRect = std::make_shared<miquella::core::xyRectangle>(3.f, 5.f, 1.f, 3.f, -2.f, difflight);
+    auto lightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,7,0), 2.f, difflight);
 
     scene->addObject(groundSphere);
     scene->addObject(centerSphere);
@@ -279,14 +279,14 @@ void generateScene6(miquella::core::Renderer& renderer)
     auto sphereMat = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.1f, 0.2f, 0.5f));
     //auto sphereMatLeft = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.8f,0.8f), 0.3f);
     //auto sphereMat = std::make_shared<miquella::core::Dielectric>(1.5);
-    auto sphereMatLeft = std::make_shared<miquella::core::Dielectric>(1.5);
+    auto sphereMatLeft = std::make_shared<miquella::core::Dielectric>(1.5f);
 
     auto sphereMatRight = std::make_shared<miquella::core::Metal>(glm::vec3(0.8f, 0.6f,0.2f), 0.f);
 
     auto groundSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,-100.5,-1), 100.f, groundMat);
-    auto centerSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,0,-1), 0.5, sphereMat);
-    auto leftSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(-1.0, 0.0, -1.0), 0.5, sphereMatLeft);
-    auto rightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(1.0, 0.0, -1.0), 0.5, sphereMatRight);
+    auto centerSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,0,-1), 0.5f, sphereMat);
+    auto leftSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(-1.0, 0.0, -1.0), 0.5f, sphereMatLeft);
+    auto rightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(1.0, 0.0, -1.0), 0.5f, sphereMatRight);
 
     //auto sphereLightMat = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(1.f, 1.f, 1.f));
     //auto lightSphere = std::make_shared<miquella::core::Sphere>(glm::vec3(0,1.5,-1), 0.5, sphereLightMat);
@@ -371,8 +371,8 @@ void generateGlassCornell(miquella::core::Renderer& renderer)
     auto white = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.73f, 0.73f, 0.73f));
     auto green = std::make_shared<miquella::core::Lambertian>(glm::vec3(0.12f, 0.45f, 0.15f));
     auto light = std::make_shared<miquella::core::DiffuseLight>(glm::vec3(15.f, 15.f, 15.f));
-    auto glassLeftMat = std::make_shared<miquella::core::Dielectric>(1.9);
-    auto glassRightMat = std::make_shared<miquella::core::Dielectric>(1.5);
+    auto glassLeftMat = std::make_shared<miquella::core::Dielectric>(1.9f);
+    auto glassRightMat = std::make_shared<miquella::core::Dielectric>(1.5f);
 
     auto left = std::make_shared<miquella::core::yzRectangle>(0.f, 555.f, 0.f, 555.f, 555.f, green);
     auto right = std::make_shared<miquella::core::yzRectangle>(0.f, 555.f, 0.f, 555.f, 0.f, red);

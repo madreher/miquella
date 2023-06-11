@@ -50,6 +50,8 @@ public:
 
         auto loop = [this, maxDepth](const int start, const int end)
         {
+            auto scene = m_scene->clone();
+            //auto scene = m_scene;
             auto startTask = std::chrono::high_resolution_clock::now();
             for (int i = start; i < end; ++i)
             {
@@ -61,7 +63,7 @@ public:
                                 (static_cast<float>(m_height - j - 1)  + miquella::core::randomFloat()) / static_cast<float>(m_height - 1)   // The camera (0,0) is bottom left, the texture is (0,0) is top left
                                 );
 
-                    glm::vec3 color = processRay(ray, maxDepth);
+                    glm::vec3 color = processRay(ray, maxDepth, scene);
 
                     auto indexAcc = static_cast<size_t>(j*m_width + i);
                     m_imageAccumulated[indexAcc] += color;

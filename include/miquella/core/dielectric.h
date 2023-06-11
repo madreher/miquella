@@ -43,6 +43,11 @@ public:
         return true;
     }
 
+    virtual std::shared_ptr<Material> clone() override
+    {
+        return std::make_shared<Dielectric>(m_refractionIndice);
+    }
+
 private:
     float _reflectance(float cosine, float refIdx) const
     {

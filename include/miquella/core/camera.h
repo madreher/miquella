@@ -23,8 +23,8 @@ class Camera {
         int getImageHeight() const { return m_imageHeight; }
 
 public:
-        int m_imageWidth;
-        int m_imageHeight;
+        int m_imageWidth = 800;
+        int m_imageHeight = 600;
 
 };
 

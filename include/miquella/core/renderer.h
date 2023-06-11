@@ -87,8 +87,13 @@ public:
         }
     }
 
-
     glm::vec3 processRay(const Ray& r, int maxDepth) const
+    {
+        return processRay(r, maxDepth, m_scene);
+    }
+
+
+    glm::vec3 processRay(const Ray& r, int maxDepth, const std::shared_ptr<Scene> scene) const
     {
         hitRecord rec;
 
@@ -96,13 +101,13 @@ public:
             return glm::vec3(0.0, 0.0, 0.0);
 
         // Start at more than 0.0 to avoid self intersection
-        if(m_scene->intersect(r, 0.001f, std::numeric_limits<float>::max(), rec))
+        if(scene->intersect(r, 0.001f, std::numeric_limits<float>::max(), rec))
         {
             miquella::core::Ray scatter;
             glm::vec3 attenuation;
             glm::vec3 emitted = rec.material->emitted();
             if(rec.material->scatter(r, rec, attenuation, scatter))
-                return emitted + attenuation * processRay(scatter, maxDepth-1);
+                return emitted + attenuation * processRay(scatter, maxDepth-1, scene);
             else
                 return emitted;
         }
