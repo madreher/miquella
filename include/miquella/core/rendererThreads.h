@@ -48,13 +48,23 @@ public:
         // Will not work with Ubuntu 18, gcc 7 and 8 too old, need 10 minimum
         //std::for_each(std::execution::par_unseq, std::begin(m_heightIndexes), std::end(m_heightIndexes), [&](int j))
 
-        auto loop = [this, maxDepth](const int start, const int end)
+        int nbTasks = 8;
+
+        auto loop = [this, maxDepth, nbTasks](const int start, const int end)
         {
+            (void)end;
             auto scene = m_scene->clone();
             //auto scene = m_scene;
             auto startTask = std::chrono::high_resolution_clock::now();
+#define LOAD_BALANCE 1
+#if LOAD_BALANCE 
+            for(int i = 0; i < m_width; ++i)
+            {
+                if (i % nbTasks != start) continue; 
+#else 
             for (int i = start; i < end; ++i)
             {
+#endif
                 for(int j = 0; j < m_height; j++)
                 {
 
@@ -69,7 +79,7 @@ public:
                     m_imageAccumulated[indexAcc] += color;
 
                     // Gamma correction
-                    auto scale = 1.f / static_cast<float>(nbFrameAccumulated+1);
+                    auto scale = 1.f / static_cast<float>(m_nbFrameAccumulated+1);
                     auto r = sqrtf(m_imageAccumulated[indexAcc].x * scale);
                     auto g = sqrtf(m_imageAccumulated[indexAcc].y * scale);
                     auto b = sqrtf(m_imageAccumulated[indexAcc].z * scale);
@@ -89,22 +99,28 @@ public:
             }
             auto endTask = std::chrono::high_resolution_clock::now();
             auto taskDuration = std::chrono::duration<double, std::milli>(endTask-startTask);
-            //std::cout<<"[Sample "<<nbFrameAccumulated<<"] Task completed in "<<taskDuration.count()<<" ms."<<std::endl;
+            std::cout<<"[Sample "<< m_nbFrameAccumulated<<"] Task completed in "<<taskDuration.count()<<" ms."<<std::endl;
         };
 
-
-        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_width, loop, 16);
+#if LOAD_BALANCE 
+        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, nbTasks, loop, nbTasks);
+#else
+        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_width, loop, nbTasks);
+#endif
+        
         loopFuture.wait();
 
         auto endTime = std::chrono::steady_clock::now();
         m_executionTime = static_cast<size_t>(std::chrono::duration<double, std::milli>(endTime - startTime).count());
-        std::cout<<"Sample "<<nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms."<<std::endl;
+        m_totalExecutionAccumulated += m_executionTime;
+        std::cout<<"Sample "<< m_nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms, accumulated average " << m_totalExecutionAccumulated / (m_nbFrameAccumulated)<<std::endl;
 
-        nbFrameAccumulated++;
+        m_nbFrameAccumulated++;
     }
 
 public:
     BS::thread_pool m_pool;
+    size_t m_totalExecutionAccumulated = 0;
 //    std::vector<int> m_heightIndexes;   // Array used to store a counter from m_height-1 to 0
 };
 

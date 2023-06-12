@@ -144,7 +144,7 @@ public:
                 m_imageAccumulated[indexAcc] += color;
 
                 // Gamma correction
-                auto scale = 1.f / static_cast<float>(nbFrameAccumulated+1);
+                auto scale = 1.f / static_cast<float>(m_nbFrameAccumulated+1);
                 auto r = sqrtf(m_imageAccumulated[indexAcc].x * scale);
                 auto g = sqrtf(m_imageAccumulated[indexAcc].y * scale);
                 auto b = sqrtf(m_imageAccumulated[indexAcc].z * scale);
@@ -165,9 +165,9 @@ public:
 
         auto endTime = std::chrono::steady_clock::now();
         m_executionTime = static_cast<size_t>(std::chrono::duration<double, std::milli>(endTime - startTime).count());
-        std::cout<<"Sample "<<nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms."<<std::endl;
+        std::cout<<"Sample "<< m_nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms."<<std::endl;
 
-        nbFrameAccumulated++;
+        m_nbFrameAccumulated++;
     }
 
     unsigned char* getImagePointer(){ return m_image.data(); }
@@ -186,7 +186,7 @@ public:
     size_t m_executionTime = 0;
 
     bool accumulate = true;
-    size_t nbFrameAccumulated = 1;
+    size_t m_nbFrameAccumulated = 1;
 
     Background m_background;
 };
