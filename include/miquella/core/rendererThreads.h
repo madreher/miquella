@@ -48,7 +48,7 @@ public:
         // Will not work with Ubuntu 18, gcc 7 and 8 too old, need 10 minimum
         //std::for_each(std::execution::par_unseq, std::begin(m_heightIndexes), std::end(m_heightIndexes), [&](int j))
 
-        int nbTasks = 8;
+        int nbTasks = 6;
 
         auto loop = [this, maxDepth, nbTasks](const int start, const int end)
         {

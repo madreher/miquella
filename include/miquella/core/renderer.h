@@ -174,6 +174,25 @@ public:
     int getImageWidth() const { return m_camera->getImageWidth(); }
     int getImageHeight() const { return m_camera->getImageHeight(); }
 
+    void writeToPPM(const std::string& path)
+    {
+        std::ofstream file;
+        file.open(path, std::ofstream::binary);
+        file << "P3\n" << m_width << ' ' << m_height << "\n255\n";
+
+        for (int j = 0; j < m_height; ++j) 
+        {
+            for (int i = 0; i < m_width; ++i) 
+            {
+                auto index = static_cast<size_t>(j*m_width*4 + i*4);
+
+                file << std::to_string(m_image[index]) << ' ' << std::to_string(m_image[index+1]) << ' ' << std::to_string(m_image[index+2]) << '\n';
+            }
+        }
+
+        file.close();
+    }
+
 public:
     std::shared_ptr<Scene> m_scene;
     std::shared_ptr<Camera> m_camera;
