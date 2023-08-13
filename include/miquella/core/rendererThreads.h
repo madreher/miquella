@@ -103,9 +103,9 @@ public:
         };
 
 #if LOAD_BALANCE 
-        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, nbTasks, loop, nbTasks);
+        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, nbTasks, loop, static_cast<size_t>(nbTasks));
 #else
-        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_width, loop, nbTasks);
+        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_width, loop, static_cast<size_t>(nbTasks));
 #endif
         
         loopFuture.wait();
