@@ -79,20 +79,22 @@ target_link_libraries( MQ_project_libraries
     INTERFACE
         CONAN_PKG::glm
         CONAN_PKG::spdlog
-	CONAN_PKG::sdl
+	    CONAN_PKG::sdl
         CONAN_PKG::lyra
         CONAN_PKG::glbinding
         CONAN_PKG::bshoshany-thread-pool
+        CONAN_PKG::cpprestsdk
 )
 else()
 target_link_libraries( MQ_project_libraries
     INTERFACE
         CONAN_PKG::glm
         CONAN_PKG::spdlog
-	CONAN_PKG::sdl
+	    CONAN_PKG::sdl
         CONAN_PKG::lyra
         CONAN_PKG::glbinding
         CONAN_PKG::bshoshany-thread-pool
+        CONAN_PKG::cpprestsdk
         stdc++fs
 )
 endif()
