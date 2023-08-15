@@ -133,7 +133,7 @@ std::string submitRenderingRequest(const std::string& server,
     }
 }
 
-std::string lastSampleRequest(const std::string& server,
+std::tuple<std::string, int> lastSampleRequest(const std::string& server,
                             int port,
                             const std::string& jobID)
 {
@@ -157,16 +157,16 @@ std::string lastSampleRequest(const std::string& server,
         {
             std::cerr<<"Error while requesting sample."<<std::endl;
             std::cerr<<obj["error"].as_string()<<std::endl;
-            return "";
+            return {"", 0};
         }
 
-        return obj["image"].as_string();
+        return { obj["image"].as_string(), obj["lastSample"].as_integer() };
     }
     catch(std::exception& e)
     {
         std::cerr<<"Error encountered while try to submit a job."<<std::endl;
         std::cerr<<e.what();
-        return "";
+        return {"", 0};
     }
 }
 
@@ -285,6 +285,9 @@ int main(int argc, char** argv)
     int port = 8000;
     std::string jobID;
     int lastSample = 0;
+    bool autoRetrieve = false;
+    int refreshRate = 5;
+    auto lastRetrieve = std::chrono::system_clock::now();
 
 
     // ---------------------- Event loop handling ----------------------------------
@@ -399,7 +402,8 @@ int main(int argc, char** argv)
             // Retrieve last sample
             if (ImGui::Button("Retrive last sample"))
             {
-                auto filePath = lastSampleRequest(serverURL, port, jobID);
+                auto [ filePath, sample ] = lastSampleRequest(serverURL, port, jobID);
+                lastSample = sample;
                 if(filePath.size() > 0)
                 {
                     std::ifstream file;
@@ -407,8 +411,37 @@ int main(int argc, char** argv)
                     image = miquella::core::io::readPPM(file);
                 }
             }
+
+            // Auto retrieve
+            {
+                ImGui::Text("Auto retrieve"); ImGui::SameLine();
+                ImGui::HelpMarker("Periodically automatically request the last samples available."); ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ImGui::Checkbox("##autoRetrieve", &autoRetrieve);
+                ImGui::PopItemWidth();
+            }
         }
         ImGui::End();
+
+        if(autoRetrieve && jobID.size() > 0)
+        {
+            auto now = std::chrono::system_clock::now();
+            auto timeElapsed = std::chrono::duration<double>( now - lastRetrieve);
+            
+            if(timeElapsed.count() > static_cast<double>(refreshRate))
+            {
+                auto [ filePath, sample ] = lastSampleRequest(serverURL, port, jobID);
+                lastSample = sample;
+                if(filePath.size() > 0)
+                {
+                    std::ifstream file;
+                    file.open(filePath);
+                    image = miquella::core::io::readPPM(file);
+                }
+
+                lastRetrieve = std::chrono::system_clock::now();
+            }
+        }
 
         if(image.image.size() > 0)
         {
