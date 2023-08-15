@@ -134,8 +134,6 @@ target_include_directories( ${lib_name}
                              "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/imgui>"
                              "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/imgui/backends>"
                              "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/ImGuiFileDialog>"
-
-
                 )
 target_include_directories( ${lib_name}
                              SYSTEM

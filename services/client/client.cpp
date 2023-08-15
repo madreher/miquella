@@ -11,6 +11,8 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_internal.h>
+#include <misc/cpp/imgui_stdlib.h>
 #include <SDL.h>
 
 #include <lyra/lyra.hpp>
@@ -36,6 +38,20 @@ using namespace concurrency::streams;
 
 
 using namespace gl;
+
+// Helper to display a little (?) mark which shows a tooltip when hovered.
+// In your own code you may want to display an actual icon if you are using a merged icon fonts (see docs/FONTS.md)
+/*static void HelpMarker(const char* desc)
+{
+    ImGui::TextDisabled("(?)");
+    if (ImGui::BeginTooltip())
+    {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}*/
 
 /* Can pass proxy information via environment variable http_proxy.
    Example:
@@ -65,6 +81,53 @@ web::http::client::http_client_config client_config_for_proxy()
     }
 
     return client_config;
+}
+
+namespace ImGui
+{
+
+void HelpMarker(const char *desc)
+{
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+}
+
+void submitRenderingRequest(const std::string& server,
+                            int port,
+                            int sceneID,
+                            int nSamples,
+                            int freqOutput)
+{
+    // Create an HTTP request.
+    // Encode the URI query since it could contain special characters like spaces.
+    std::string url = server + ":" + std::to_string(port) + "/";
+    http_client client(url, client_config_for_proxy());
+
+    auto uri = web::uri_builder(U("/submit"));
+    uri.append_query("sceneID=" + std::to_string(sceneID));
+    uri.append_query("nSamples=" + std::to_string(nSamples));
+    uri.append_query("freqOutput=" + std::to_string(freqOutput));
+    auto response = client.request(methods::POST, uri.to_string());
+
+    try
+    {
+        std::cout<<"Return code: "<<response.get().status_code()<<std::endl;
+        std::cout<<"Body: "<<response.get().extract_string().get()<<std::endl;
+    }
+    catch(std::exception& e)
+    {
+        std::cerr<<"Error encountered while try to submit a job."<<std::endl;
+        std::cerr<<e.what();
+    }
 }
 
 
@@ -172,15 +235,14 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
-
-
-    // Create an HTTP request.
-    // Encode the URI query since it could contain special characters like spaces.
-    http_client client(U("http://localhost:8000/"), client_config_for_proxy());
-    auto response = client.request(methods::POST, uri_builder(U("/submit")).append_query("sceneID=1").to_string());
-    std::cout<<"Return code: "<<response.get().status_code()<<std::endl;
-    std::cout<<"Body: "<<response.get().extract_string().get()<<std::endl;
     
+    // ImGui settings
+    int sceneID = 0;
+    bool ret = false;
+    int maxSamples = 1000;
+    int freqOutput = 50;
+    std::string serverURL = "http://localhost";
+    int port = 8000;
 
 
     // ---------------------- Event loop handling ----------------------------------
@@ -226,6 +288,65 @@ int main(int argc, char** argv)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window);
         ImGui::NewFrame();
+
+        // Menu to submit a rendering job
+        ImGui::Begin("Rendering Execution");
+        {
+            // Scene ID
+            {
+                const char* items[] = { "3 Balls", "Random balls", "Rectangle Light", "OneWeekend", "Lambertien test", "Dielectric", "Empty Cornel", "Sphere Cornel"};
+                ImGui::Combo("Scene Selection", &sceneID, items, IM_ARRAYSIZE(items));
+                ImGui::SameLine(); ImGui::HelpMarker(
+                    "Scene selection model.");
+            }
+
+            // Max samples
+            {
+                ImGui::Text("Total number of samples");
+                ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ret |= ImGui::InputInt("samples",  &maxSamples);
+                ImGui::PopItemWidth();
+            }
+
+            // Output freq
+            {
+                ImGui::Text("Output frequency");
+                ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ret |= ImGui::InputInt("freq",  &freqOutput);
+                ImGui::PopItemWidth();
+            }
+
+            // Server
+            {
+                ImGui::Text("Server adress");
+                ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ret |= ImGui::InputText("addr", &serverURL);
+                ImGui::PopItemWidth();
+            }
+
+            // Port
+            {
+                ImGui::Text("Port");
+                ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ret |= ImGui::InputInt("port",  &port);
+                ImGui::PopItemWidth();
+            }
+
+            if (ImGui::Button("Submit"))
+            {
+                submitRenderingRequest(serverURL,
+                            port,
+                            sceneID,
+                            maxSamples,
+                            freqOutput);
+            }
+
+        }
+        ImGui::End();
 
         if(image.image.size() > 0)
         {

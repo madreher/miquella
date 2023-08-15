@@ -28,6 +28,15 @@
 #include <miquella/core/diffuseLight.h>
 #include <miquella/core/rectangle.h>
 
+#include <cpprest/filestream.h>
+#include <cpprest/http_client.h>
+
+using namespace utility;
+using namespace web::http;
+using namespace web::http::client;
+using namespace concurrency::streams;
+
+
 // Useful ressources:
 // - https://github.com/retifrav/sdl-imgui-example
 // - https://github.com/uysalaltas/Pixel-Engine/tree/main/Pixel
@@ -39,6 +48,36 @@
 
 
 using namespace gl;
+
+/* Can pass proxy information via environment variable http_proxy.
+   Example:
+   Linux:   export http_proxy=http://192.1.8.1:8080
+ */
+web::http::client::http_client_config client_config_for_proxy()
+{
+    web::http::client::http_client_config client_config;
+#ifdef _WIN32
+    wchar_t* pValue = nullptr;
+    std::unique_ptr<wchar_t, void (*)(wchar_t*)> holder(nullptr, [](wchar_t* p) { free(p); });
+    size_t len = 0;
+    auto err = _wdupenv_s(&pValue, &len, L"http_proxy");
+    if (pValue) holder.reset(pValue);
+    if (!err && pValue && len)
+    {
+        std::wstring env_http_proxy_string(pValue, len - 1);
+#else
+    if (const char* env_http_proxy = std::getenv("http_proxy"))
+    {
+        std::string env_http_proxy_string(env_http_proxy);
+#endif
+        if (env_http_proxy_string == U("auto"))
+            client_config.set_proxy(web::web_proxy::use_auto_discovery);
+        else
+            client_config.set_proxy(web::web_proxy(env_http_proxy_string));
+    }
+
+    return client_config;
+}
 
 
 void generateScene1(miquella::core::Renderer& renderer)
@@ -418,6 +457,8 @@ int main(int argc, char** argv)
 
     size_t maxSamples = 1000;
     size_t outputFrequency = 20;
+    bool queryController = false;
+    std::string jobID;
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
     scenes.push_back(generateScene1);
@@ -438,7 +479,10 @@ int main(int argc, char** argv)
             ("Total number of samples to generate on the image.")
         | lyra::opt( outputFrequency, "freq" )
             ["--freq"]
-            ("Output image frequency");
+            ("Output image frequency")
+        | lyra::opt( queryController )
+            ["-q"]["--query"]
+            ("Query the default controller to get a rendering job" );
 
     auto result = cli.parse( { argc, argv } );
     if ( !result )
@@ -451,6 +495,47 @@ int main(int argc, char** argv)
     {
         std::cerr << "Error: Scene ID does not exist." << std::endl;
         exit(1);
+    }
+
+    if(queryController)
+    {
+        std::string serverURL = "http://localhost";
+        int port = 8000;
+
+        std::string url = serverURL + ":" + std::to_string(port) + "/";
+        http_client client(url, client_config_for_proxy());
+
+        auto uri = web::uri_builder(U("/requestJob"));
+        auto response = client.request(methods::POST, uri.to_string());
+
+        try
+        {
+            auto r = response.get();
+            std::cout<<"Return code: "<<r.status_code()<<std::endl;
+            
+            auto obj = r.extract_json().get();
+            std::cout<<"Body: "<<obj.serialize()<<std::endl;
+            
+            if(obj.has_string_field("jobID"))
+            {
+                jobID = obj["jobID"].as_string();
+                sceneID = static_cast<size_t>(obj["sceneID"].as_integer());
+                maxSamples = static_cast<size_t>(obj["nSamples"].as_integer());
+                outputFrequency = static_cast<size_t>(obj["freqOutput"].as_integer());
+                std::cout<<"Rendering job received by the controller."<<std::endl;
+            }
+            else
+            {
+                std::cerr<<"Error: jobID not found in the request job response. Aborting."<<std::endl;
+                return 0;
+            }
+        }
+        catch(std::exception& e)
+        {
+            std::cerr<<"Error encountered while try to submit a job."<<std::endl;
+            std::cerr<<e.what();
+            return 0;
+        }
     }
 
     srand(static_cast<unsigned int>(time(nullptr)));

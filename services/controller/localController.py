@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from fastapi import FastAPI, Form, Request, status, Query
-from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import FastAPI, File, UploadFile
@@ -18,7 +18,9 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-pendingJobDB = {}
+pendingJobDB = []
+
+runningJobDB = []
 
 @app.post("/submit")
 async def create_rendering_job(sceneID : int = 3, nSamples : int = 1000, freqOutput : int = 50):
@@ -26,10 +28,22 @@ async def create_rendering_job(sceneID : int = 3, nSamples : int = 1000, freqOut
         Send a query to perform a rendering task.
     '''
     jobId = str(uuid.uuid4())
-    pendingJobDB[jobId] = {"sceneID" : sceneID, "nSamples" : nSamples, "freqOutput" : freqOutput}
+    pendingJobDB.append({"jobID" : jobId, "sceneID" : sceneID, "nSamples" : nSamples, "freqOutput" : freqOutput})
 
     return Response(content=jobId, media_type="text/html")
 
+@app.post("/requestJob")
+async def provision_job():
+    '''
+        Send a rendering job to a server
+    '''
+    if len(pendingJobDB) > 0:
+        runningJobDB.append(pendingJobDB[0])
+        del pendingJobDB[0]
+
+        return JSONResponse(content=runningJobDB[-1])
+    else:
+        return JSONResponse(content={})
 
 if __name__ == '__main__':
 
