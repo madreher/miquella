@@ -1,6 +1,7 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <filesystem>
 
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
@@ -564,7 +565,37 @@ int main(int argc, char** argv)
         {
             std::stringstream fileName;
             fileName<<"scene"<<sceneID<<"_sample"<<i<<".ppm";
-            renderer.writeToPPM(fileName.str());
+            std::filesystem::path sampleImage(fileName.str());
+            auto absPath = std::filesystem::absolute(sampleImage);
+            renderer.writeToPPM(absPath.string());
+
+            if(queryController)
+            {
+                // Notify the controller that we have a new sample image
+                std::string serverURL = "http://localhost";
+                int port = 8000;
+
+                std::string url = serverURL + ":" + std::to_string(port) + "/";
+                http_client client(url, client_config_for_proxy());
+
+                auto uri = web::uri_builder(U("/updateLocalJobExec"));
+                uri.append_query("jobID=" + jobID);
+                uri.append_query("filePath=" + absPath.string());
+                uri.append_query("lastSample=" + std::to_string(i));
+                auto response = client.request(methods::POST, uri.to_string());
+
+                try
+                {
+                    auto r = response.get();
+                    std::cout<<"Update server return code: "<<r.status_code()<<std::endl;
+                }
+                catch(std::exception& e)
+                {
+                    std::cerr<<"Error encountered while try to submit a job."<<std::endl;
+                    std::cerr<<e.what();
+                    return 0;
+                }   
+            }
         }
     }
         

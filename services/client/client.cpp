@@ -101,7 +101,7 @@ void HelpMarker(const char *desc)
 
 }
 
-void submitRenderingRequest(const std::string& server,
+std::string submitRenderingRequest(const std::string& server,
                             int port,
                             int sceneID,
                             int nSamples,
@@ -121,12 +121,52 @@ void submitRenderingRequest(const std::string& server,
     try
     {
         std::cout<<"Return code: "<<response.get().status_code()<<std::endl;
-        std::cout<<"Body: "<<response.get().extract_string().get()<<std::endl;
+        std::string jobID = response.get().extract_string().get();
+        std::cout<<"Body: "<<jobID<<std::endl;
+        return jobID;
     }
     catch(std::exception& e)
     {
         std::cerr<<"Error encountered while try to submit a job."<<std::endl;
         std::cerr<<e.what();
+        return "";
+    }
+}
+
+std::string lastSampleRequest(const std::string& server,
+                            int port,
+                            const std::string& jobID)
+{
+    // Create an HTTP request.
+    // Encode the URI query since it could contain special characters like spaces.
+    std::string url = server + ":" + std::to_string(port) + "/";
+    http_client client(url, client_config_for_proxy());
+
+    auto uri = web::uri_builder(U("/requestLastLocalSample"));
+    uri.append_query("jobID=" + jobID);
+    auto response = client.request(methods::GET, uri.to_string());
+
+    try
+    {
+        auto r = response.get();
+        std::cout<<"Return code: "<<r.status_code()<<std::endl;
+        auto obj = r.extract_json().get();
+        std::cout<<"Body: "<<obj.serialize()<<std::endl;
+
+        if(obj.has_string_field("error"))
+        {
+            std::cerr<<"Error while requesting sample."<<std::endl;
+            std::cerr<<obj["error"].as_string()<<std::endl;
+            return "";
+        }
+
+        return obj["image"].as_string();
+    }
+    catch(std::exception& e)
+    {
+        std::cerr<<"Error encountered while try to submit a job."<<std::endl;
+        std::cerr<<e.what();
+        return "";
     }
 }
 
@@ -243,6 +283,8 @@ int main(int argc, char** argv)
     int freqOutput = 50;
     std::string serverURL = "http://localhost";
     int port = 8000;
+    std::string jobID;
+    int lastSample = 0;
 
 
     // ---------------------- Event loop handling ----------------------------------
@@ -338,13 +380,33 @@ int main(int argc, char** argv)
 
             if (ImGui::Button("Submit"))
             {
-                submitRenderingRequest(serverURL,
+                jobID = submitRenderingRequest(serverURL,
                             port,
                             sceneID,
                             maxSamples,
                             freqOutput);
             }
 
+            // Job ID info
+            {
+                ImGui::Text("Job ID");
+                ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ret |= ImGui::InputText("jobID",  &jobID);
+                ImGui::PopItemWidth();
+            }
+
+            // Retrieve last sample
+            if (ImGui::Button("Retrive last sample"))
+            {
+                auto filePath = lastSampleRequest(serverURL, port, jobID);
+                if(filePath.size() > 0)
+                {
+                    std::ifstream file;
+                    file.open(filePath);
+                    image = miquella::core::io::readPPM(file);
+                }
+            }
         }
         ImGui::End();
 
@@ -357,7 +419,7 @@ int main(int argc, char** argv)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.w, image.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.image.data());
 
             ImGui::Begin("Renderer");
-            ImGui::Text("size = %d x %d", image.w, image.h);
+            ImGui::Text("size = %d x %d, sample %d", image.w, image.h, lastSample);
             ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(image_texture)), ImVec2(static_cast<float>(image.w), static_cast<float>(image.h)));
             ImGui::End();
         }
