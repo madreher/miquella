@@ -99,7 +99,7 @@ public:
             }
             auto endTask = std::chrono::high_resolution_clock::now();
             auto taskDuration = std::chrono::duration<double, std::milli>(endTask-startTask);
-            std::cout<<"[Sample "<< m_nbFrameAccumulated<<"] Task completed in "<<taskDuration.count()<<" ms."<<std::endl;
+            //std::cout<<"[Sample "<< m_nbFrameAccumulated<<"] Task completed in "<<taskDuration.count()<<" ms."<<std::endl;
         };
 
 #if LOAD_BALANCE 
@@ -113,7 +113,7 @@ public:
         auto endTime = std::chrono::steady_clock::now();
         m_executionTime = static_cast<size_t>(std::chrono::duration<double, std::milli>(endTime - startTime).count());
         m_totalExecutionAccumulated += m_executionTime;
-        std::cout<<"Sample "<< m_nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms, accumulated average " << m_totalExecutionAccumulated / (m_nbFrameAccumulated)<<std::endl;
+        //std::cout<<"Sample "<< m_nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms, accumulated average " << m_totalExecutionAccumulated / (m_nbFrameAccumulated)<<std::endl;
 
         m_nbFrameAccumulated++;
     }

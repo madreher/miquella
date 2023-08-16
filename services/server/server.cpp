@@ -32,6 +32,8 @@
 #include <cpprest/filestream.h>
 #include <cpprest/http_client.h>
 
+#include <cpr/cpr.h>
+
 using namespace utility;
 using namespace web::http;
 using namespace web::http::client;
@@ -459,6 +461,7 @@ int main(int argc, char** argv)
     size_t maxSamples = 1000;
     size_t outputFrequency = 20;
     bool queryController = false;
+    bool queryControllerRemote = false;
     std::string jobID;
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
@@ -483,7 +486,10 @@ int main(int argc, char** argv)
             ("Output image frequency")
         | lyra::opt( queryController )
             ["-q"]["--query"]
-            ("Query the default controller to get a rendering job" );
+            ("Query the default controller to get a rendering job" )
+        | lyra::opt( queryControllerRemote )
+            ["-qr"]["--queryRemote"]
+            ("Query the default remote controller to get a rendering job" );
 
     auto result = cli.parse( { argc, argv } );
     if ( !result )
@@ -498,7 +504,7 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    if(queryController)
+    if(queryController || queryControllerRemote)
     {
         std::string serverURL = "http://localhost";
         int port = 8000;
@@ -568,6 +574,7 @@ int main(int argc, char** argv)
             std::filesystem::path sampleImage(fileName.str());
             auto absPath = std::filesystem::absolute(sampleImage);
             renderer.writeToPPM(absPath.string());
+            std::cout<<"Sample "<<i<<" saved to file "<<absPath.string()<<std::endl;
 
             if(queryController)
             {
@@ -595,6 +602,68 @@ int main(int argc, char** argv)
                     std::cerr<<e.what();
                     return 0;
                 }   
+            }
+
+            // Manual method with cppRestsdk, didn't work
+            // source: https://stackoverflow.com/questions/56497375/cpprestsdk-how-to-post-multipart-data
+            /*if(queryControllerRemote)
+            {
+                // Notify the controller that we have a new sample image
+                std::string serverURL = "http://localhost";
+                int port = 8000;
+
+                std::string url = serverURL + ":" + std::to_string(port) + "/";
+                http_client client(url + "updateRemoteJobExec", client_config_for_proxy());
+
+                // Form a multipart/form-data scheme 
+                // 1.Create a boundary ( a random value that you know is unique)
+                // KabezOf... is something goofie I just wrote, make sure you use 
+                // something that you know does not exist in  the actual messages.
+                std::string boundary = "----KabezOfFireDegelDegelGoGoniDaijobo";
+                // 2.Embed different fields 
+                std::stringstream bodyContent;
+                std::map<std::string, std::string> keyValues{ {"key1", "value1"},
+                                                            {"key2", "value2"},
+                                                            {"key3", "value3" } };
+
+                for (auto& [key, value] : keyValues)
+                {
+                    bodyContent << "--" << boundary << "\r\n"
+                                << "Content-Disposition: form-data; name=\"" << key << "\"\r\n\r\n"
+                                << value << "\r\n";
+                }
+                // 3. if you have any files to send as well, Now is the time
+                // here we are sending an image file, as you can see, like
+                // previous block, you can put this into a loop and instead
+                // of 1 file, have several files.
+                // reading the image 
+                std::ifstream inputFile;
+                inputFile.open(absPath.string(), std::ios::binary | std::ios::in);
+                std::ostringstream imgContent;
+                std::copy(std::istreambuf_iterator<char>(inputFile),
+                        std::istreambuf_iterator<char>(),
+                        std::ostreambuf_iterator<char>(imgContent));
+
+                auto imageFilename =  std::filesystem::path(absPath.string()).filename().string();
+                bodyContent << "--" << boundary<<"\r\n"
+                            << "Content-Disposition: form-data; name=\"image\"; filename=\"" << imageFilename << "\"\r\n"
+                            << "Content-Type: " << "image/ppm" << "\r\n\r\n"
+                            << imgContent.str() << "\r\n"
+                            << "--" << boundary << "--";
+
+                //web::http::client::http_client client(your_uri);
+                web::http::http_request requestMessage{ methods::POST };
+                requestMessage.set_body(bodyContent.str(), "multipart/form-data; boundary=" + boundary);
+
+                auto response = client.request(requestMessage);
+
+            }*/
+
+            if(queryControllerRemote)
+            {
+                // The uploaded file is named "path-to-file"
+                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateRemoteJobExec"},
+                cpr::Multipart{{"file", cpr::File{absPath.string(), "new-file-name"}}});
             }
         }
     }

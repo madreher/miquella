@@ -84,6 +84,7 @@ target_link_libraries( MQ_project_libraries
         CONAN_PKG::glbinding
         CONAN_PKG::bshoshany-thread-pool
         CONAN_PKG::cpprestsdk
+        CONAN_PKG::cpr
 )
 else()
 target_link_libraries( MQ_project_libraries
@@ -95,6 +96,7 @@ target_link_libraries( MQ_project_libraries
         CONAN_PKG::glbinding
         CONAN_PKG::bshoshany-thread-pool
         CONAN_PKG::cpprestsdk
+        CONAN_PKG::cpr
         stdc++fs
 )
 endif()

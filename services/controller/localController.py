@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from fastapi import FastAPI, Form, Request, status, Query
+from fastapi import FastAPI, Form, Request, status, Query, Depends
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -21,6 +21,9 @@ templates = Jinja2Templates(directory="templates")
 pendingJobDB = []
 
 runningJobDB = {}
+
+CONTROLLER_FOLDER = os.path.join(os.environ["HOME"], ".miquella")
+SAMPLE_FOLDER = os.path.join(CONTROLLER_FOLDER, "samples")
 
 @app.post("/submit")
 async def create_rendering_job(sceneID : int = 3, nSamples : int = 1000, freqOutput : int = 50):
@@ -90,7 +93,47 @@ async def requestLastLocalSample(jobID : str):
         }
         return JSONResponse(content=result)
 
+async def parse_body(request: Request):
+    data: bytes = await request.body()
+    return data
+
+@app.post("/updateRemoteJobExec")
+async def updateRemoteJobExec(file: UploadFile):
+    '''
+        Upload a sample image and store it locally. The file is then 
+        move to a local folder which is saved in the database.
+    '''
+    #print(data)
+
+    jobID = str(uuid.uuid4())
+
+    contents = await file.read()
+
+    filename = file.filename
+    
+    if filename == '':
+        result =  {'error': 'No file selected for uploading'}
+        return JSONResponse(content=result)
+
+    jobFolder = os.path.join(SAMPLE_FOLDER, jobID)
+    if not os.path.isdir(jobFolder):
+        os.mkdir( jobFolder )
+
+    filePath = os.path.join(jobFolder, filename)
+    with open( filePath, "wb") as f:
+        f.write(contents)
+
+    
+    #runningJobDB[jobID]["samples"].append(lastSample)
+    #runningJobDB[jobID]["images"].append(filePath)
+
 if __name__ == '__main__':
+
+    if not os.path.isdir(CONTROLLER_FOLDER):
+        os.mkdir( CONTROLLER_FOLDER )
+
+    if not os.path.isdir(SAMPLE_FOLDER):
+        os.mkdir( SAMPLE_FOLDER )    
 
     uvicorn.run('localController:app', host='0.0.0.0', port=8000)
 
