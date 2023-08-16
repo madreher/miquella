@@ -10,6 +10,7 @@ glm/0.9.9.8
 bshoshany-thread-pool/3.4.0
 cpprestsdk/2.10.15
 cpr/1.10.4
+nlohmann_json/3.11.2
 
 [options]
 sdl:jack=False

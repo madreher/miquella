@@ -103,12 +103,6 @@ async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSamp
         Upload a sample image and store it locally. The file is then 
         move to a local folder which is saved in the database.
     '''
-    #print(data)
-
-    print(jobID)
-    print(lastSample)
-    #jobID = str(uuid.uuid4())
-
     contents = await file.read()
 
     filename = file.filename

@@ -29,15 +29,11 @@
 #include <miquella/core/diffuseLight.h>
 #include <miquella/core/rectangle.h>
 
-#include <cpprest/filestream.h>
-#include <cpprest/http_client.h>
-
 #include <cpr/cpr.h>
 
-using namespace utility;
-using namespace web::http;
-using namespace web::http::client;
-using namespace concurrency::streams;
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 
 
 // Useful ressources:
@@ -51,37 +47,6 @@ using namespace concurrency::streams;
 
 
 using namespace gl;
-
-/* Can pass proxy information via environment variable http_proxy.
-   Example:
-   Linux:   export http_proxy=http://192.1.8.1:8080
- */
-web::http::client::http_client_config client_config_for_proxy()
-{
-    web::http::client::http_client_config client_config;
-#ifdef _WIN32
-    wchar_t* pValue = nullptr;
-    std::unique_ptr<wchar_t, void (*)(wchar_t*)> holder(nullptr, [](wchar_t* p) { free(p); });
-    size_t len = 0;
-    auto err = _wdupenv_s(&pValue, &len, L"http_proxy");
-    if (pValue) holder.reset(pValue);
-    if (!err && pValue && len)
-    {
-        std::wstring env_http_proxy_string(pValue, len - 1);
-#else
-    if (const char* env_http_proxy = std::getenv("http_proxy"))
-    {
-        std::string env_http_proxy_string(env_http_proxy);
-#endif
-        if (env_http_proxy_string == U("auto"))
-            client_config.set_proxy(web::web_proxy::use_auto_discovery);
-        else
-            client_config.set_proxy(web::web_proxy(env_http_proxy_string));
-    }
-
-    return client_config;
-}
-
 
 void generateScene1(miquella::core::Renderer& renderer)
 {
@@ -509,40 +474,34 @@ int main(int argc, char** argv)
         std::string serverURL = "http://localhost";
         int port = 8000;
 
-        std::string url = serverURL + ":" + std::to_string(port) + "/";
-        http_client client(url, client_config_for_proxy());
+        std::string url = serverURL + ":" + std::to_string(port) + "/requestJob";
+        cpr::Response r = cpr::Post(cpr::Url{url});
 
-        auto uri = web::uri_builder(U("/requestJob"));
-        auto response = client.request(methods::POST, uri.to_string());
+        std::cout<<"Return code: "<<r.status_code<<std::endl;
+        std::cout<<"Body: "<<r.text<<std::endl;
 
-        try
+        if(r.status_code != 200)
         {
-            auto r = response.get();
-            std::cout<<"Return code: "<<r.status_code()<<std::endl;
-            
-            auto obj = r.extract_json().get();
-            std::cout<<"Body: "<<obj.serialize()<<std::endl;
-            
-            if(obj.has_string_field("jobID"))
-            {
-                jobID = obj["jobID"].as_string();
-                sceneID = static_cast<size_t>(obj["sceneID"].as_integer());
-                maxSamples = static_cast<size_t>(obj["nSamples"].as_integer());
-                outputFrequency = static_cast<size_t>(obj["freqOutput"].as_integer());
-                std::cout<<"Rendering job received by the controller."<<std::endl;
-            }
-            else
-            {
-                std::cerr<<"Error: jobID not found in the request job response. Aborting."<<std::endl;
-                return 0;
-            }
-        }
-        catch(std::exception& e)
-        {
-            std::cerr<<"Error encountered while try to submit a job."<<std::endl;
-            std::cerr<<e.what();
+            std::cerr<<"Error while querying for a job. Abording."<<std::endl;
             return 0;
         }
+
+        // Parsing the text
+        json data = json::parse(r.text);
+        if(data.count("jobID") > 0)
+        {
+            jobID = data.at("jobID").get<std::string>();
+            sceneID = data.at("sceneID").get<size_t>();
+            maxSamples = data.at("nSamples").get<size_t>();
+            outputFrequency = data.at("freqOutput").get<size_t>();
+            std::cout<<"Rendering job received by the controller."<<std::endl;
+        }
+        else
+        {
+            std::cerr<<"Error: jobID not found in the request job response. Aborting."<<std::endl;
+            return 0;
+        }
+
     }
 
     srand(static_cast<unsigned int>(time(nullptr)));
@@ -579,86 +538,18 @@ int main(int argc, char** argv)
             if(queryController)
             {
                 // Notify the controller that we have a new sample image
-                std::string serverURL = "http://localhost";
-                int port = 8000;
-
-                std::string url = serverURL + ":" + std::to_string(port) + "/";
-                http_client client(url, client_config_for_proxy());
-
-                auto uri = web::uri_builder(U("/updateLocalJobExec"));
-                uri.append_query("jobID=" + jobID);
-                uri.append_query("filePath=" + absPath.string());
-                uri.append_query("lastSample=" + std::to_string(i));
-                auto response = client.request(methods::POST, uri.to_string());
-
-                try
-                {
-                    auto r = response.get();
-                    std::cout<<"Update server return code: "<<r.status_code()<<std::endl;
-                }
-                catch(std::exception& e)
-                {
-                    std::cerr<<"Error encountered while try to submit a job."<<std::endl;
-                    std::cerr<<e.what();
-                    return 0;
-                }   
+                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateLocalJobExec"},
+                cpr::Parameters{
+                    {"jobID", jobID},
+                    {"filePath", absPath.string()},
+                    {"lastSample", std::to_string(i)}
+                    });  
+                std::cout<<"Update server return code: "<<r.status_code<<std::endl;
             }
 
             // Manual method with cppRestsdk, didn't work
             // source: https://stackoverflow.com/questions/56497375/cpprestsdk-how-to-post-multipart-data
-            /*if(queryControllerRemote)
-            {
-                // Notify the controller that we have a new sample image
-                std::string serverURL = "http://localhost";
-                int port = 8000;
-
-                std::string url = serverURL + ":" + std::to_string(port) + "/";
-                http_client client(url + "updateRemoteJobExec", client_config_for_proxy());
-
-                // Form a multipart/form-data scheme 
-                // 1.Create a boundary ( a random value that you know is unique)
-                // KabezOf... is something goofie I just wrote, make sure you use 
-                // something that you know does not exist in  the actual messages.
-                std::string boundary = "----KabezOfFireDegelDegelGoGoniDaijobo";
-                // 2.Embed different fields 
-                std::stringstream bodyContent;
-                std::map<std::string, std::string> keyValues{ {"key1", "value1"},
-                                                            {"key2", "value2"},
-                                                            {"key3", "value3" } };
-
-                for (auto& [key, value] : keyValues)
-                {
-                    bodyContent << "--" << boundary << "\r\n"
-                                << "Content-Disposition: form-data; name=\"" << key << "\"\r\n\r\n"
-                                << value << "\r\n";
-                }
-                // 3. if you have any files to send as well, Now is the time
-                // here we are sending an image file, as you can see, like
-                // previous block, you can put this into a loop and instead
-                // of 1 file, have several files.
-                // reading the image 
-                std::ifstream inputFile;
-                inputFile.open(absPath.string(), std::ios::binary | std::ios::in);
-                std::ostringstream imgContent;
-                std::copy(std::istreambuf_iterator<char>(inputFile),
-                        std::istreambuf_iterator<char>(),
-                        std::ostreambuf_iterator<char>(imgContent));
-
-                auto imageFilename =  std::filesystem::path(absPath.string()).filename().string();
-                bodyContent << "--" << boundary<<"\r\n"
-                            << "Content-Disposition: form-data; name=\"image\"; filename=\"" << imageFilename << "\"\r\n"
-                            << "Content-Type: " << "image/ppm" << "\r\n\r\n"
-                            << imgContent.str() << "\r\n"
-                            << "--" << boundary << "--";
-
-                //web::http::client::http_client client(your_uri);
-                web::http::http_request requestMessage{ methods::POST };
-                requestMessage.set_body(bodyContent.str(), "multipart/form-data; boundary=" + boundary);
-
-                auto response = client.request(requestMessage);
-
-            }*/
-
+            // Switching to CPR
             if(queryControllerRemote)
             {
                 // IMPORTANT: the part name "file" must match the parameter name in the 

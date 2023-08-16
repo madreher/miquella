@@ -97,6 +97,7 @@ target_link_libraries( MQ_project_libraries
         CONAN_PKG::bshoshany-thread-pool
         CONAN_PKG::cpprestsdk
         CONAN_PKG::cpr
+        CONAN_PKG::nlohmann_json
         stdc++fs
 )
 endif()
