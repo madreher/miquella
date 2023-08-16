@@ -98,14 +98,16 @@ async def parse_body(request: Request):
     return data
 
 @app.post("/updateRemoteJobExec")
-async def updateRemoteJobExec(file: UploadFile):
+async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSample: str = Form(...)):
     '''
         Upload a sample image and store it locally. The file is then 
         move to a local folder which is saved in the database.
     '''
     #print(data)
 
-    jobID = str(uuid.uuid4())
+    print(jobID)
+    print(lastSample)
+    #jobID = str(uuid.uuid4())
 
     contents = await file.read()
 
@@ -124,8 +126,8 @@ async def updateRemoteJobExec(file: UploadFile):
         f.write(contents)
 
     
-    #runningJobDB[jobID]["samples"].append(lastSample)
-    #runningJobDB[jobID]["images"].append(filePath)
+    runningJobDB[jobID]["samples"].append(int(lastSample))
+    runningJobDB[jobID]["images"].append(filePath)
 
 if __name__ == '__main__':
 

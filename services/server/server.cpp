@@ -661,9 +661,14 @@ int main(int argc, char** argv)
 
             if(queryControllerRemote)
             {
-                // The uploaded file is named "path-to-file"
+                // IMPORTANT: the part name "file" must match the parameter name in the 
+                // controller function!
                 cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateRemoteJobExec"},
-                cpr::Multipart{{"file", cpr::File{absPath.string(), "new-file-name"}}});
+                cpr::Multipart{
+                    {"file", cpr::File{absPath.string()}},
+                    {"jobID", jobID},
+                    {"lastSample", std::to_string(i)}
+                    });
             }
         }
     }
