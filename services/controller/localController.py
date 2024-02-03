@@ -38,7 +38,8 @@ async def create_rendering_job(sceneID : int = 3, nSamples : int = 1000, freqOut
             "nSamples" : nSamples, 
             "freqOutput" : freqOutput,
             "samples" : [],
-            "images" : []
+            "images" : [],
+            "status" : "PENDING"
         })
 
     return Response(content=jobId, media_type="text/html")
@@ -51,6 +52,7 @@ async def provision_job():
     if len(pendingJobDB) > 0:
         jobID = pendingJobDB[0]["jobID"]
         runningJobDB[jobID] = pendingJobDB[0]
+        runningJobDB[jobID]["status"] = "RUNNING"
         del pendingJobDB[0]
 
         return JSONResponse(content=runningJobDB[jobID])
@@ -67,6 +69,8 @@ async def updateLocalJobExec(jobID : str, filePath : str, lastSample : int):
     
     runningJobDB[jobID]["samples"].append(lastSample)
     runningJobDB[jobID]["images"].append(filePath)
+    if lastSample == runningJobDB[jobID]["nSamples"]:
+        runningJobDB[jobID]["status"] = "COMPLETED"
 
 @app.get("/requestLastLocalSample")
 async def requestLastLocalSample(jobID : str):
@@ -89,7 +93,8 @@ async def requestLastLocalSample(jobID : str):
     else:
         result = {
             "lastSample" : entry["samples"][-1],
-            "image" : entry["images"][-1]
+            "image" : entry["images"][-1],
+            "status" : entry["status"]
         }
         return JSONResponse(content=result)
 

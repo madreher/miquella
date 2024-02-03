@@ -133,7 +133,7 @@ std::string submitRenderingRequest(const std::string& server,
     }
 }
 
-std::tuple<std::string, int> lastSampleRequest(const std::string& server,
+std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& server,
                             int port,
                             const std::string& jobID)
 {
@@ -157,16 +157,19 @@ std::tuple<std::string, int> lastSampleRequest(const std::string& server,
         {
             std::cerr<<"Error while requesting sample."<<std::endl;
             std::cerr<<obj["error"].as_string()<<std::endl;
-            return {"", 0};
+            return {"", 0, ""};
         }
 
-        return { obj["image"].as_string(), obj["lastSample"].as_integer() };
+        return { 
+            obj["image"].as_string(), 
+            obj["lastSample"].as_integer(),
+            obj["status"].as_string() };
     }
     catch(std::exception& e)
     {
         std::cerr<<"Error encountered while try to submit a job."<<std::endl;
         std::cerr<<e.what();
-        return {"", 0};
+        return {"", 0, ""};
     }
 }
 
@@ -288,6 +291,7 @@ int main(int argc, char** argv)
     bool autoRetrieve = false;
     int refreshRate = 5;
     auto lastRetrieve = std::chrono::system_clock::now();
+    std::string jobStatus = "";
 
 
     // ---------------------- Event loop handling ----------------------------------
@@ -399,11 +403,30 @@ int main(int argc, char** argv)
                 ImGui::PopItemWidth();
             }
 
+            // Job Status
+            {
+                ImGui::Text("Job Status");
+                ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ret |= ImGui::InputText("jobStatus",  &jobStatus);
+                ImGui::PopItemWidth();
+            }
+
+            // Last sample
+            {
+                ImGui::Text("Last Sample");
+                ImGui::SameLine();
+                ImGui::PushItemWidth(-1); // so we dont have a label
+                ret |= ImGui::InputInt("lastSample",  &lastSample);
+                ImGui::PopItemWidth();
+            }
+
             // Retrieve last sample
             if (ImGui::Button("Retrive last sample"))
             {
-                auto [ filePath, sample ] = lastSampleRequest(serverURL, port, jobID);
+                auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
                 lastSample = sample;
+                jobStatus = status;
                 if(filePath.size() > 0)
                 {
                     std::ifstream file;
@@ -430,13 +453,21 @@ int main(int argc, char** argv)
             
             if(timeElapsed.count() > static_cast<double>(refreshRate))
             {
-                auto [ filePath, sample ] = lastSampleRequest(serverURL, port, jobID);
+                auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
                 lastSample = sample;
+                jobStatus = status;
                 if(filePath.size() > 0)
                 {
                     std::ifstream file;
                     file.open(filePath);
                     image = miquella::core::io::readPPM(file);
+                }
+
+                if(status == "COMPLETED")
+                {
+                    // Disabling the auto retrieve
+                    std::cout<<"Last frame of the job received. Disabling Auto Retrieve."<<std::endl;
+                    autoRetrieve = false;
                 }
 
                 lastRetrieve = std::chrono::system_clock::now();

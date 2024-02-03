@@ -547,7 +547,7 @@ int main(int argc, char** argv)
             {
                 //std::cerr<<"Error while querying for a job. Abording."<<std::endl;
                 //return 0;
-                std::cerr<<"No job available on the controller."<<std::endl;
+                std::cerr<<"Unable to contact the controller."<<std::endl;
                 std::this_thread::sleep_for(std::chrono::seconds(5));
                 continue;
             }
