@@ -1,5 +1,6 @@
 #include <iostream>
 #include <chrono>
+#include <thread>
 #include <fstream>
 #include <filesystem>
 
@@ -418,6 +419,61 @@ void generateGlassCornell(miquella::core::Renderer& renderer)
     renderer.setBackground(miquella::core::Background::BLACK);
 }
 
+void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
+                size_t sceneID, 
+                bool queryController,
+                bool queryControllerRemote, 
+                size_t maxSamples,
+                size_t outputFrequency,
+                const std::string& jobID)
+{
+    miquella::core::RendererThreads renderer;
+    scenes[sceneID](renderer);
+
+    for(size_t i = 1; i <= maxSamples; ++i)
+    {
+        // Compute the image
+        renderer.render();
+
+        if(i % outputFrequency == 0)
+        {
+            std::stringstream fileName;
+            fileName<<"scene"<<sceneID<<"_sample"<<i<<".ppm";
+            std::filesystem::path sampleImage(fileName.str());
+            auto absPath = std::filesystem::absolute(sampleImage);
+            renderer.writeToPPM(absPath.string());
+            std::cout<<"Sample "<<i<<" saved to file "<<absPath.string()<<std::endl;
+
+            if(queryController)
+            {
+                // Notify the controller that we have a new sample image
+                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateLocalJobExec"},
+                cpr::Parameters{
+                    {"jobID", jobID},
+                    {"filePath", absPath.string()},
+                    {"lastSample", std::to_string(i)}
+                    });  
+                std::cout<<"Update server return code: "<<r.status_code<<std::endl;
+            }
+
+            // Manual method with cppRestsdk, didn't work
+            // source: https://stackoverflow.com/questions/56497375/cpprestsdk-how-to-post-multipart-data
+            // Switching to CPR
+            if(queryControllerRemote)
+            {
+                // IMPORTANT: the part name "file" must match the parameter name in the 
+                // controller function!
+                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateRemoteJobExec"},
+                cpr::Multipart{
+                    {"file", cpr::File{absPath.string()}},
+                    {"jobID", jobID},
+                    {"lastSample", std::to_string(i)}
+                    });
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
 
@@ -425,7 +481,7 @@ int main(int argc, char** argv)
 
     size_t maxSamples = 1000;
     size_t outputFrequency = 20;
-    bool queryController = false;
+    bool queryController = true;
     bool queryControllerRemote = false;
     std::string jobID;
 
@@ -469,100 +525,61 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    if(queryController || queryControllerRemote)
-    {
-        std::string serverURL = "http://localhost";
-        int port = 8000;
-
-        std::string url = serverURL + ":" + std::to_string(port) + "/requestJob";
-        cpr::Response r = cpr::Post(cpr::Url{url});
-
-        std::cout<<"Return code: "<<r.status_code<<std::endl;
-        std::cout<<"Body: "<<r.text<<std::endl;
-
-        if(r.status_code != 200)
-        {
-            std::cerr<<"Error while querying for a job. Abording."<<std::endl;
-            return 0;
-        }
-
-        // Parsing the text
-        json data = json::parse(r.text);
-        if(data.count("jobID") > 0)
-        {
-            jobID = data.at("jobID").get<std::string>();
-            sceneID = data.at("sceneID").get<size_t>();
-            maxSamples = data.at("nSamples").get<size_t>();
-            outputFrequency = data.at("freqOutput").get<size_t>();
-            std::cout<<"Rendering job received by the controller."<<std::endl;
-        }
-        else
-        {
-            std::cerr<<"Error: jobID not found in the request job response. Aborting."<<std::endl;
-            return 0;
-        }
-
-    }
-
     srand(static_cast<unsigned int>(time(nullptr)));
-
-    // ---------------------- Scene setup ----------------------------------
-    //miquella::core::Renderer renderer;
-    miquella::core::RendererThreads renderer;
-    scenes[sceneID](renderer);
-    //generateScene1(renderer);             // 3 balls
-    //generateScene2(renderer);             // Random balls
-    //generateScene3(renderer);             // Test rectangle light
-    //generateScene4(renderer);             // RaytracingOneWeekend final scene
-    //generateScene5(renderer);             // Lambertien test
-    //generateScene6(renderer);             // Dielectric
-    //generateEmptyCornell(renderer);       // Empty cornel
-    //generateGlassCornell(renderer);         // Cornel with spheres of glass
 
     // ---------------------- Ray tracing time ----------------------------------
     
-    for(size_t i = 1; i <= maxSamples; ++i)
+    while(1)
     {
-        // Compute the image
-        renderer.render();
-
-        if(i % outputFrequency == 0)
+        // We don't have a job yet, querying the controller
+        if(queryController || queryControllerRemote)
         {
-            std::stringstream fileName;
-            fileName<<"scene"<<sceneID<<"_sample"<<i<<".ppm";
-            std::filesystem::path sampleImage(fileName.str());
-            auto absPath = std::filesystem::absolute(sampleImage);
-            renderer.writeToPPM(absPath.string());
-            std::cout<<"Sample "<<i<<" saved to file "<<absPath.string()<<std::endl;
+            std::string serverURL = "http://localhost";
+            int port = 8000;
 
-            if(queryController)
+            std::string url = serverURL + ":" + std::to_string(port) + "/requestJob";
+            cpr::Response r = cpr::Post(cpr::Url{url});
+
+            //std::cout<<"Return code: "<<r.status_code<<std::endl;
+            //std::cout<<"Body: "<<r.text<<std::endl;
+
+            if(r.status_code != 200)
             {
-                // Notify the controller that we have a new sample image
-                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateLocalJobExec"},
-                cpr::Parameters{
-                    {"jobID", jobID},
-                    {"filePath", absPath.string()},
-                    {"lastSample", std::to_string(i)}
-                    });  
-                std::cout<<"Update server return code: "<<r.status_code<<std::endl;
+                //std::cerr<<"Error while querying for a job. Abording."<<std::endl;
+                //return 0;
+                std::cerr<<"No job available on the controller."<<std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+                continue;
             }
 
-            // Manual method with cppRestsdk, didn't work
-            // source: https://stackoverflow.com/questions/56497375/cpprestsdk-how-to-post-multipart-data
-            // Switching to CPR
-            if(queryControllerRemote)
+            // Parsing the text
+            json data = json::parse(r.text);
+            if(data.empty())
             {
-                // IMPORTANT: the part name "file" must match the parameter name in the 
-                // controller function!
-                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateRemoteJobExec"},
-                cpr::Multipart{
-                    {"file", cpr::File{absPath.string()}},
-                    {"jobID", jobID},
-                    {"lastSample", std::to_string(i)}
-                    });
+                std::cerr<<"No job available on the controller."<<std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+                continue;
+            }
+            else if(data.count("jobID") > 0)
+            {
+                jobID = data.at("jobID").get<std::string>();
+                sceneID = data.at("sceneID").get<size_t>();
+                maxSamples = data.at("nSamples").get<size_t>();
+                outputFrequency = data.at("freqOutput").get<size_t>();
+                std::cout<<"Rendering job received by the controller."<<std::endl;
+
+                // Rendering the scene
+                runRenderer(scenes, sceneID, queryController, queryControllerRemote, maxSamples, outputFrequency, jobID);
+            }
+            else
+            {
+                std::cerr<<"Error: jobID not found in the request job response. Aborting."<<std::endl;
+                return 0;
             }
         }
+
     }
+    
         
     return 0;
 }
