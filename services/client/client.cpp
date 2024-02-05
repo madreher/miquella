@@ -25,6 +25,10 @@ using namespace web::http;
 using namespace web::http::client;
 using namespace concurrency::streams;
 
+#include <cpr/cpr.h>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 #include <miquella/core/io/ppm.h>
 
 // Useful ressources:
@@ -138,39 +142,28 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
                             const std::string& jobID)
 {
     // Create an HTTP request.
-    // Encode the URI query since it could contain special characters like spaces.
-    std::string url = server + ":" + std::to_string(port) + "/";
-    http_client client(url, client_config_for_proxy());
+    std::string url = server + ":" + std::to_string(port) + "/requestLastLocalSample";
+    cpr::Response r = cpr::Get(cpr::Url{url},
+        cpr::Parameters{{"jobID", jobID}});
 
-    auto uri = web::uri_builder(U("/requestLastLocalSample"));
-    uri.append_query("jobID=" + jobID);
-    auto response = client.request(methods::GET, uri.to_string());
-
-    try
+    if (r.status_code != 200)
     {
-        auto r = response.get();
-        std::cout<<"Return code: "<<r.status_code()<<std::endl;
-        auto obj = r.extract_json().get();
-        std::cout<<"Body: "<<obj.serialize()<<std::endl;
-
-        if(obj.has_string_field("error"))
-        {
-            std::cerr<<"Error while requesting sample."<<std::endl;
-            std::cerr<<obj["error"].as_string()<<std::endl;
-            return {"", 0, ""};
-        }
-
-        return { 
-            obj["image"].as_string(), 
-            obj["lastSample"].as_integer(),
-            obj["status"].as_string() };
-    }
-    catch(std::exception& e)
-    {
-        std::cerr<<"Error encountered while try to submit a job."<<std::endl;
-        std::cerr<<e.what();
+        std::cerr<<"Error: unable to contact the controller."<<std::endl;
         return {"", 0, ""};
     }
+
+    // Parsing the response
+    json data = json::parse(r.text);
+    if(data.count("image") == 0 || data.count("lastSample") == 0 || data.count("status") == 0)
+    {
+        std::cerr<<"Error: unable to parse the response from the controller when querrying from the last sample."<<std::endl;
+        return {"", 0, ""};
+    }
+
+    return { 
+            data["image"].get<std::string>(), 
+            data["lastSample"].get<int>(),
+            data["status"].get<std::string>() };
 }
 
 
