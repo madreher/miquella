@@ -154,16 +154,23 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
 
     // Parsing the response
     json data = json::parse(r.text);
-    if(data.count("image") == 0 || data.count("lastSample") == 0 || data.count("status") == 0)
+    if(data.count("error") == 1)
     {
-        std::cerr<<"Error: unable to parse the response from the controller when querrying from the last sample."<<std::endl;
+        std::cerr<<"Received error from controller: "<<data["error"].get<std::string>()<<std::endl;
         return {"", 0, ""};
     }
-
-    return { 
+    else if(data.count("image") == 1 && data.count("lastSample") == 1 && data.count("status") == 1)
+    {
+        return { 
             data["image"].get<std::string>(), 
             data["lastSample"].get<int>(),
             data["status"].get<std::string>() };
+        
+    }
+    else{
+        std::cerr<<"Error: unable to parse the response from the controller when querrying from the last sample."<<std::endl;
+        return {"", 0, ""};
+    }
 }
 
 
