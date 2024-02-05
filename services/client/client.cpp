@@ -17,14 +17,6 @@
 
 #include <lyra/lyra.hpp>
 
-#include <cpprest/filestream.h>
-#include <cpprest/http_client.h>
-
-using namespace utility;
-using namespace web::http;
-using namespace web::http::client;
-using namespace concurrency::streams;
-
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -57,35 +49,7 @@ using namespace gl;
     }
 }*/
 
-/* Can pass proxy information via environment variable http_proxy.
-   Example:
-   Linux:   export http_proxy=http://192.1.8.1:8080
- */
-web::http::client::http_client_config client_config_for_proxy()
-{
-    web::http::client::http_client_config client_config;
-#ifdef _WIN32
-    wchar_t* pValue = nullptr;
-    std::unique_ptr<wchar_t, void (*)(wchar_t*)> holder(nullptr, [](wchar_t* p) { free(p); });
-    size_t len = 0;
-    auto err = _wdupenv_s(&pValue, &len, L"http_proxy");
-    if (pValue) holder.reset(pValue);
-    if (!err && pValue && len)
-    {
-        std::wstring env_http_proxy_string(pValue, len - 1);
-#else
-    if (const char* env_http_proxy = std::getenv("http_proxy"))
-    {
-        std::string env_http_proxy_string(env_http_proxy);
-#endif
-        if (env_http_proxy_string == U("auto"))
-            client_config.set_proxy(web::web_proxy::use_auto_discovery);
-        else
-            client_config.set_proxy(web::web_proxy(env_http_proxy_string));
-    }
 
-    return client_config;
-}
 
 namespace ImGui
 {
@@ -111,30 +75,21 @@ std::string submitRenderingRequest(const std::string& server,
                             int nSamples,
                             int freqOutput)
 {
-    // Create an HTTP request.
-    // Encode the URI query since it could contain special characters like spaces.
-    std::string url = server + ":" + std::to_string(port) + "/";
-    http_client client(url, client_config_for_proxy());
+    std::string url = server + ":" + std::to_string(port) + "/submit";
+    cpr::Response r = cpr::Post(cpr::Url{url},
+        cpr::Parameters{
+            {"sceneID", std::to_string(sceneID)},
+            {"nSamples", std::to_string(nSamples)},
+            {"freqOutput", std::to_string(freqOutput)}
+    });
 
-    auto uri = web::uri_builder(U("/submit"));
-    uri.append_query("sceneID=" + std::to_string(sceneID));
-    uri.append_query("nSamples=" + std::to_string(nSamples));
-    uri.append_query("freqOutput=" + std::to_string(freqOutput));
-    auto response = client.request(methods::POST, uri.to_string());
-
-    try
+    if (r.status_code != 200)
     {
-        std::cout<<"Return code: "<<response.get().status_code()<<std::endl;
-        std::string jobID = response.get().extract_string().get();
-        std::cout<<"Body: "<<jobID<<std::endl;
-        return jobID;
-    }
-    catch(std::exception& e)
-    {
-        std::cerr<<"Error encountered while try to submit a job."<<std::endl;
-        std::cerr<<e.what();
+        std::cerr<<"Error: unable to contact the controller."<<std::endl;
         return "";
     }
+    else
+        return r.text;
 }
 
 std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& server,
