@@ -7,6 +7,8 @@
 //#include <execution>  // Not available with gcc8/9
 #include <chrono>
 
+#include <spdlog/spdlog.h>
+
 namespace miquella
 {
 
@@ -100,6 +102,7 @@ public:
             auto endTask = std::chrono::high_resolution_clock::now();
             auto taskDuration = std::chrono::duration<double, std::milli>(endTask-startTask);
             //std::cout<<"[Sample "<< m_nbFrameAccumulated<<"] Task completed in "<<taskDuration.count()<<" ms."<<std::endl;
+            spdlog::trace("[Sample {}] Task completed in {} ms.", m_nbFrameAccumulated, taskDuration.count());
         };
 
 #if LOAD_BALANCE 
@@ -114,7 +117,7 @@ public:
         m_executionTime = static_cast<size_t>(std::chrono::duration<double, std::milli>(endTime - startTime).count());
         m_totalExecutionAccumulated += m_executionTime;
         //std::cout<<"Sample "<< m_nbFrameAccumulated<<" computed in "<<m_executionTime<<" ms, accumulated average " << m_totalExecutionAccumulated / (m_nbFrameAccumulated)<<std::endl;
-
+        spdlog::trace("Sample {} computed in {} ms, accumulated average {} ms.", m_nbFrameAccumulated, m_executionTime, m_totalExecutionAccumulated / (m_nbFrameAccumulated));
         m_nbFrameAccumulated++;
     }
 

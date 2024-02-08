@@ -3,6 +3,7 @@
 #include <thread>
 #include <fstream>
 #include <filesystem>
+#include <map>
 
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
@@ -442,7 +443,7 @@ void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
             std::filesystem::path sampleImage(fileName.str());
             auto absPath = std::filesystem::absolute(sampleImage);
             renderer.writeToPPM(absPath.string());
-            std::cout<<"Sample "<<i<<" saved to file "<<absPath.string()<<std::endl;
+            spdlog::debug("Sample {} saved to file {}.", i, absPath.string());
 
             if(queryController)
             {
@@ -453,7 +454,8 @@ void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
                     {"filePath", absPath.string()},
                     {"lastSample", std::to_string(i)}
                     });  
-                std::cout<<"Update server return code: "<<r.status_code<<std::endl;
+                spdlog::debug("Update local server return code: {}", r.status_code);
+
             }
 
             // Manual method with cppRestsdk, didn't work
@@ -469,6 +471,8 @@ void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
                     {"jobID", jobID},
                     {"lastSample", std::to_string(i)}
                     });
+
+                spdlog::debug("Update remote server return code: {}", r.status_code);
             }
         }
     }
@@ -484,6 +488,7 @@ int main(int argc, char** argv)
     bool queryController = true;
     bool queryControllerRemote = false;
     std::string jobID;
+    std::string loglvl = "info";
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
     scenes.push_back(generateScene1);
@@ -508,6 +513,9 @@ int main(int argc, char** argv)
         | lyra::opt( queryController )
             ["-q"]["--query"]
             ("Query the default controller to get a rendering job" )
+        | lyra::opt( loglvl, "loglvl")
+            ["--loglvl"]
+            ("Log level to apply. info (default), warn, critical, debug")
         | lyra::opt( queryControllerRemote )
             ["-qr"]["--queryRemote"]
             ("Query the default remote controller to get a rendering job" );
@@ -515,15 +523,31 @@ int main(int argc, char** argv)
     auto result = cli.parse( { argc, argv } );
     if ( !result )
     {
-        std::cerr << "Error in command line: " << result.errorMessage() << std::endl;
+        spdlog::critical("Unable to parse the command line: {}.", result.errorMessage());
         exit(1);
     }
 
     if(sceneID >= scenes.size())
     {
-        std::cerr << "Error: Scene ID does not exist." << std::endl;
+        spdlog::critical("Scene ID does not exist ({}).", sceneID);
         exit(1);
     }
+
+    // Setting up the logging level
+    std::map<std::string, spdlog::level::level_enum> loglvlTable {
+        {"info", spdlog::level::info},
+        {"debug", spdlog::level::debug},
+        {"trace", spdlog::level::trace},
+        {"warn", spdlog::level::warn},
+        {"crit", spdlog::level::critical}
+    };
+    if(loglvlTable.count(loglvl) > 0)
+    {
+        spdlog::set_level(loglvlTable[loglvl]);
+        spdlog::info("Setting logging level to {}.", loglvl);
+    }
+    else
+        spdlog::info("Unrecognized log level. Using info by default.");
 
     srand(static_cast<unsigned int>(time(nullptr)));
 
@@ -540,14 +564,14 @@ int main(int argc, char** argv)
             std::string url = serverURL + ":" + std::to_string(port) + "/requestJob";
             cpr::Response r = cpr::Post(cpr::Url{url});
 
-            //std::cout<<"Return code: "<<r.status_code<<std::endl;
-            //std::cout<<"Body: "<<r.text<<std::endl;
+            spdlog::debug("Return code: {}", r.status_code);
+            spdlog::debug("Body: {}", r.text);
 
             if(r.status_code != 200)
             {
                 //std::cerr<<"Error while querying for a job. Abording."<<std::endl;
                 //return 0;
-                std::cerr<<"Unable to contact the controller."<<std::endl;
+                spdlog::warn("Unable to contact the controller.");
                 std::this_thread::sleep_for(std::chrono::seconds(5));
                 continue;
             }
@@ -556,7 +580,7 @@ int main(int argc, char** argv)
             json data = json::parse(r.text);
             if(data.empty())
             {
-                std::cerr<<"No job available on the controller."<<std::endl;
+                spdlog::info("No job available on the controller.");
                 std::this_thread::sleep_for(std::chrono::seconds(5));
                 continue;
             }
@@ -566,14 +590,19 @@ int main(int argc, char** argv)
                 sceneID = data.at("sceneID").get<size_t>();
                 maxSamples = data.at("nSamples").get<size_t>();
                 outputFrequency = data.at("freqOutput").get<size_t>();
-                std::cout<<"Rendering job received by the controller."<<std::endl;
+                spdlog::info("Rendering job {} received from the controller.", jobID);
 
+                auto start = std::chrono::steady_clock::now();
                 // Rendering the scene
                 runRenderer(scenes, sceneID, queryController, queryControllerRemote, maxSamples, outputFrequency, jobID);
+                auto end = std::chrono::steady_clock::now();
+                std::chrono::duration<double> elapsed(end - start);
+
+                spdlog::info("Rendering Job {} completed in {}s.", jobID, elapsed.count());
             }
             else
             {
-                std::cerr<<"Error: jobID not found in the request job response. Aborting."<<std::endl;
+                spdlog::critical("jobID not found in the request job response. Aborting.");
                 return 0;
             }
         }
