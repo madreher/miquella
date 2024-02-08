@@ -15,3 +15,4 @@ share/nfcbn/nd2/jupyter_notebooks/*.py
 share/nfcbn/nd2/jupyter_notebooks/*.nbconvert.ipynb
 *.autosave
 .cache
+.vscode

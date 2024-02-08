@@ -18,6 +18,9 @@
 #include <lyra/lyra.hpp>
 
 #include <cpr/cpr.h>
+
+#include <spdlog/spdlog.h>
+
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -85,11 +88,15 @@ std::string submitRenderingRequest(const std::string& server,
 
     if (r.status_code != 200)
     {
-        std::cerr<<"Error: unable to contact the controller."<<std::endl;
+        //std::cerr<<"Error: unable to contact the controller."<<std::endl;
+        spdlog::warn("Unable to contact the controller, job not submitted.");
         return "";
     }
     else
+    {
+        spdlog::info("Job accepted by controller with ID {}", r.text);
         return r.text;
+    }
 }
 
 std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& server,
@@ -103,7 +110,7 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
 
     if (r.status_code != 200)
     {
-        std::cerr<<"Error: unable to contact the controller."<<std::endl;
+        spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
         return {"", 0, ""};
     }
 
@@ -111,7 +118,7 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
     json data = json::parse(r.text);
     if(data.count("error") == 1)
     {
-        std::cerr<<"Received error from controller: "<<data["error"].get<std::string>()<<std::endl;
+        spdlog::warn("Received error from controller: {}", data["error"].get<std::string>());
         return {"", 0, ""};
     }
     else if(data.count("image") == 1 && data.count("lastSample") == 1 && data.count("status") == 1)
@@ -122,8 +129,9 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
             data["status"].get<std::string>() };
         
     }
-    else{
-        std::cerr<<"Error: unable to parse the response from the controller when querrying from the last sample."<<std::endl;
+    else
+    {
+        spdlog::warn("Error: unable to parse the response from the controller when querrying from the last sample.");
         return {"", 0, ""};
     }
 }
@@ -132,8 +140,12 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
 int main(int argc, char** argv)
 {
     std::string preloadPath;
+    std::string loglvl = "info";
 
     auto cli = lyra::cli()
+        | lyra::opt( loglvl, "loglvl")
+            ["--loglvl"]
+            ("Log level to apply. info (default), warn, critical, debug")
         | lyra::opt( preloadPath, "preloadpath" )
             ["--image"]
             ("Path to a PPM image to load.");
@@ -141,9 +153,25 @@ int main(int argc, char** argv)
     auto result = cli.parse( { argc, argv } );
     if ( !result )
     {
-        std::cerr << "Error in command line: " << result.errorMessage() << std::endl;
+        spdlog::critical("Unable to parse the command line: {}.", result.errorMessage());
         exit(1);
     }
+
+    // Setting up the logging level
+    std::map<std::string, spdlog::level::level_enum> loglvlTable {
+        {"info", spdlog::level::info},
+        {"debug", spdlog::level::debug},
+        {"trace", spdlog::level::trace},
+        {"warn", spdlog::level::warn},
+        {"crit", spdlog::level::critical}
+    };
+    if(loglvlTable.count(loglvl) > 0)
+    {
+        spdlog::set_level(loglvlTable[loglvl]);
+        spdlog::info("Setting logging level to {}.", loglvl);
+    }
+    else
+        spdlog::info("Unrecognized log level. Using info by default.");
 
 
 
@@ -159,7 +187,7 @@ int main(int argc, char** argv)
         image = miquella::core::io::readPPM(file);
         if(image.image.size() == 0)
         {
-            std::cerr<<"Error while loading image "<<preloadPath<<". Abording."<<std::endl;
+            spdlog::critical("Error while loading image {}. Abording.", preloadPath);
             return -1;
         }
     }
@@ -188,8 +216,7 @@ int main(int argc, char** argv)
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     if (gl_context == NULL)
     {
-        std::cerr << "[ERROR] Failed to create a GL context: "
-                  << SDL_GetError() << std::endl;
+        spdlog::critical("Failed to create a GL context: {}", SDL_GetError());
         return -1;
     }
     SDL_GL_MakeCurrent(window, gl_context);
@@ -203,11 +230,10 @@ int main(int argc, char** argv)
 
     // Initializing glbinding
     glbinding::initialize([](const char* name) { return reinterpret_cast<glbinding::ProcAddress>(SDL_GL_GetProcAddress(name)); });
-    std::cout << "[INFO] OpenGL renderer: "
-              << glGetString(GL_RENDERER)
-              << std::endl;
 
-    std::cout << "[INFO] OpenGL Version: " << glbinding::aux::ContextInfo::version() << std::endl;
+    spdlog::info("OpenGL renderer: {}", glGetString(GL_RENDERER));
+
+    spdlog::info("OpenGL Version: {}.{}", glbinding::aux::ContextInfo::version().majorVersion(), glbinding::aux::ContextInfo::version().minorVersion());
 
     // ---------------------- Imgui Setup ----------------------------------
 
@@ -387,6 +413,7 @@ int main(int argc, char** argv)
                     std::ifstream file;
                     file.open(filePath);
                     image = miquella::core::io::readPPM(file);
+                    spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
                 }
             }
 
@@ -416,12 +443,13 @@ int main(int argc, char** argv)
                     std::ifstream file;
                     file.open(filePath);
                     image = miquella::core::io::readPPM(file);
+                    spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
                 }
 
                 if(status == "COMPLETED")
                 {
                     // Disabling the auto retrieve
-                    std::cout<<"Last frame of the job received. Disabling Auto Retrieve."<<std::endl;
+                    spdlog::info("Last frame of the job received. Disabling Auto Retrieve.");
                     autoRetrieve = false;
                 }
 
