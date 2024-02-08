@@ -39,7 +39,7 @@ pip3 install conan==1.*
 # Only for this terminal
 source ~/.profile
 
-pip3 install fastapi uvicorn python-multipart
+pip3 install fastapi uvicorn python-multipart sqlalchemy
 ```
 
 ### Building
