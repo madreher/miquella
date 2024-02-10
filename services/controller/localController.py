@@ -11,8 +11,6 @@ from sqlalchemy import String, create_engine, PickleType, select, update
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session 
 from sqlalchemy.ext.mutable import MutableList
 
-
-
 import uvicorn
 import os
 import uuid
@@ -44,6 +42,7 @@ class Job(Base):
         result["freqOutput"] = self.freqOutout
 
         return result
+    
 # Create the engine which is used to connect to the database
 engine = create_engine("sqlite://", echo=True)
 
@@ -63,11 +62,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 ################################ WEBSERVER ###################################
 
-
-#pendingJobDB = []
-
-#runningJobDB = {}
-
 CONTROLLER_FOLDER = os.path.join(os.environ["HOME"], ".miquella")
 SAMPLE_FOLDER = os.path.join(CONTROLLER_FOLDER, "samples")
 
@@ -79,21 +73,10 @@ async def create_rendering_job(sceneID : int = 3, nSamples : int = 1000, freqOut
     '''
         Send a query to perform a rendering task.
     '''
-    jobId = str(uuid.uuid4())
-    #pendingJobDB.append(
-    #    {
-    #        "jobID" : jobId, 
-    #        "sceneID" : sceneID, 
-    #        "nSamples" : nSamples, 
-    #        "freqOutput" : freqOutput,
-    #        "samples" : [],
-    #        "images" : [],
-    #        "status" : "PENDING"
-    #    })
     
     # Add the job to the databse
     newJob = Job()
-    newJob.jobID = jobId
+    newJob.jobID = str(uuid.uuid4())
     newJob.sceneID = sceneID
     newJob.nSamples = nSamples
     newJob.freqOutout = freqOutput
@@ -103,7 +86,7 @@ async def create_rendering_job(sceneID : int = 3, nSamples : int = 1000, freqOut
     session.add_all([newJob])
     session.commit()
 
-    return Response(content=jobId, media_type="text/html")
+    return Response(content=newJob.jobID, media_type="text/html")
 
 @app.post("/requestJob")
 async def provision_job():
@@ -127,63 +110,12 @@ async def provision_job():
 
         # Sending the job to the server
         return JSONResponse(content=firstJob[0].toJobRequestDict())
-    for job in jobs:
-        print(job[0].jobID)
-        print(job[0].images)
-
-        # Update the the job
-        print("Attempt at updating")
-        job[0].status = "RUNNING"
-        #updateCmd = 
-        session.commit()
-
-        updateSelect = select(Job).where(Job.status == "RUNNING")
-        newJobs = session.execute(updateSelect)
-        for job2 in newJobs:
-            print(job2)
-        print("End update")
-
-    if len(pendingJobDB) > 0:
-        jobID = pendingJobDB[0]["jobID"]
-        runningJobDB[jobID] = pendingJobDB[0]
-        runningJobDB[jobID]["status"] = "RUNNING"
-        del pendingJobDB[0]
-
-        # Query the db
-        stmt = select(Job).where(Job.status == "PENDING")
-        jobs = session.execute(stmt)
-        for job in jobs:
-            print(job[0].jobID)
-            print(job[0].images)
-
-            # Update the the job
-            print("Attempt at updating")
-            job[0].status = "RUNNING"
-            #updateCmd = 
-            session.commit()
-
-            updateSelect = select(Job).where(Job.status == "RUNNING")
-            newJobs = session.execute(updateSelect)
-            for job2 in newJobs:
-                print(job2)
-            print("End update")
-
-        return JSONResponse(content=runningJobDB[jobID])
-    else:
-        return JSONResponse(content={})
 
 @app.post("/updateLocalJobExec")
 async def updateLocalJobExec(jobID : str, filePath : str, lastSample : int):
     '''
         Update the runningJobDB with the last output done by a worker.
     '''
-    #if jobID not in runningJobDB:
-    #    raise RuntimeError("Received an unknown JobID.")
-    
-    #runningJobDB[jobID]["samples"].append(lastSample)
-    #runningJobDB[jobID]["images"].append(filePath)
-    #if lastSample == runningJobDB[jobID]["nSamples"]:
-    #    runningJobDB[jobID]["status"] = "COMPLETED"
 
     # Select the job
     stmt = select(Job).where(Job.jobID == jobID)
@@ -201,12 +133,6 @@ async def updateLocalJobExec(jobID : str, filePath : str, lastSample : int):
     if lastSample == firstJob[0].nSamples:
         firstJob[0].status = "COMPLETED"
     session.commit()
-
-    # Check the result
-    #jobs2 = session.execute(stmt)
-    #for job in jobs2:
-    #    print(job[0].samples)
-    #print("End update")
 
 @app.get("/requestLastLocalSample")
 async def requestLastLocalSample(jobID : str):
@@ -245,26 +171,6 @@ async def requestLastLocalSample(jobID : str):
         }
         return JSONResponse(content=result)
 
-    if jobID not in runningJobDB:
-        result = {
-            "error" : "Job not running."
-        }
-        return JSONResponse(content=result)
-    
-    entry = runningJobDB[jobID]
-    if len(entry["samples"]) == 0:
-        result = {
-            "error" : "No samples received yet."
-        }
-        return JSONResponse(content=result)
-    else:
-        result = {
-            "lastSample" : entry["samples"][-1],
-            "image" : entry["images"][-1],
-            "status" : entry["status"]
-        }
-        return JSONResponse(content=result)
-
 async def parse_body(request: Request):
     data: bytes = await request.body()
     return data
@@ -292,8 +198,19 @@ async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSamp
         f.write(contents)
 
     
-    runningJobDB[jobID]["samples"].append(int(lastSample))
-    runningJobDB[jobID]["images"].append(filePath)
+    stmt = select(Job).where(Job.jobID == jobID)
+    jobs = session.execute(stmt)
+    
+    # Dev warning: first() cancel the rest of the potential row in the result
+    # and close the result. Can't call first() again on jobs after this
+    firstJob = jobs.first()
+    
+    if firstJob is None:
+        raise RuntimeError("JobID given when calling updateRemoveJobExec is not found in the database.")
+    
+    # Update the database 
+    firstJob[0].samples.append(int(lastSample))
+    firstJob[0].images.append(filePath)
 
 if __name__ == '__main__':
 
