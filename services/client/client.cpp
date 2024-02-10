@@ -72,6 +72,31 @@ void HelpMarker(const char *desc)
 
 }
 
+// Make the UI compact because there are so many fields
+static void PushStyleCompact()
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, static_cast<float>(static_cast<int>(style.FramePadding.y * 0.60f))));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, static_cast<float>(static_cast<int>(style.ItemSpacing.y * 0.60f))));
+}
+
+static void PopStyleCompact()
+{
+    ImGui::PopStyleVar(2);
+}
+
+struct JobSatus 
+{
+    std::string jobID;
+    int sceneID;
+    int nSamples;
+    int freqOutput;
+    int lastSample;
+    std::string lastImage;
+    std::string jobStatus;
+
+};
+
 std::string submitRenderingRequest(const std::string& server,
                             int port,
                             int sceneID,
@@ -134,6 +159,29 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
         spdlog::warn("Error: unable to parse the response from the controller when querrying from the last sample.");
         return {"", 0, ""};
     }
+}
+
+bool fullListOfJobsRequest(const std::string& server, int port, std::vector<JobSatus>& jobList)
+{
+    // Create an HTTP request.
+    std::string url = server + ":" + std::to_string(port) + "/requestAllJobs";
+    cpr::Response r = cpr::Get(cpr::Url{url});
+
+    if (r.status_code != 200)
+    {
+        spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
+        return false;
+    }
+
+    // Parsing the response
+    json data = json::parse(r.text);
+
+    for(auto && job : data["jobs"])
+    {
+        // Dev note: Switch this to emplace_back when moving to c++20 standart
+        jobList.push_back({job["jobID"], job["sceneID"], job["nSamples"], job["freqOutput"], job["lastSample"], job["lastImage"], job["status"]});
+    }
+    return true;
 }
 
 
@@ -274,6 +322,8 @@ int main(int argc, char** argv)
     auto lastRetrieve = std::chrono::system_clock::now();
     std::string jobStatus = "";
 
+    std::vector<JobSatus> jobs;
+
 
     // ---------------------- Event loop handling ----------------------------------
 
@@ -318,6 +368,54 @@ int main(int argc, char** argv)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window);
         ImGui::NewFrame();
+
+        // standard demo window
+        //bool show_demo_window = true;
+        //ImGui::ShowDemoWindow(&show_demo_window);
+
+        ImGui::Begin("Job Table");
+        {
+            static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV;
+            PushStyleCompact();
+            //ImGui::CheckboxFlags("ImGuiTableFlags_Resizable", &flags, ImGuiTableFlags_Resizable);
+            //ImGui::CheckboxFlags("ImGuiTableFlags_Reorderable", &flags, ImGuiTableFlags_Reorderable);
+            //ImGui::CheckboxFlags("ImGuiTableFlags_Hideable", &flags, ImGuiTableFlags_Hideable);
+            //ImGui::CheckboxFlags("ImGuiTableFlags_NoBordersInBody", &flags, ImGuiTableFlags_NoBordersInBody);
+            //ImGui::CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags, ImGuiTableFlags_NoBordersInBodyUntilResize); ImGui::SameLine(); ImGui::HelpMarker("Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers)");
+            PopStyleCompact();
+            if (ImGui::BeginTable("jobs", 7, flags))
+            {
+                ImGui::TableSetupColumn("JobID");
+                ImGui::TableSetupColumn("Status");
+                ImGui::TableSetupColumn("Max samples");
+                ImGui::TableSetupColumn("Last sample");
+                ImGui::TableSetupColumn("Last image");
+                ImGui::TableSetupColumn("Scene ID");
+                ImGui::TableSetupColumn("Output freq");
+                ImGui::TableHeadersRow();
+
+                for(size_t i = 0; i < jobs.size(); ++i)
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%s", jobs[i].jobID.c_str());
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%s", jobs[i].jobStatus.c_str());
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%i", jobs[i].nSamples);
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::Text("%i", jobs[i].lastSample);
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::Text("%s", jobs[i].lastImage.c_str());
+                    ImGui::TableSetColumnIndex(5);
+                    ImGui::Text("%i", jobs[i].sceneID);
+                    ImGui::TableSetColumnIndex(6);
+                    ImGui::Text("%i", jobs[i].freqOutput);
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
 
         // Menu to submit a rendering job
         ImGui::Begin("Rendering Execution");
@@ -451,6 +549,17 @@ int main(int argc, char** argv)
                     // Disabling the auto retrieve
                     spdlog::info("Last frame of the job received. Disabling Auto Retrieve.");
                     autoRetrieve = false;
+                }
+
+                // TEST
+                jobs.clear();
+                if(fullListOfJobsRequest(serverURL, port, jobs))
+                {
+                    spdlog::info("Received a list of {} jobs.", jobs.size());
+                }
+                else
+                {
+                    spdlog::info("Failed to receive the list of jobs.");
                 }
 
                 lastRetrieve = std::chrono::system_clock::now();

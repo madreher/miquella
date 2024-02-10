@@ -42,6 +42,22 @@ class Job(Base):
         result["freqOutput"] = self.freqOutout
 
         return result
+
+    def toJobStatusDict(self) -> dict:
+        result = {}
+        result["jobID"] = self.jobID
+        result["sceneID"] = self.sceneID
+        result["nSamples"] = self.nSamples
+        result["freqOutput"] = self.freqOutout
+        if len(self.samples) == 0:
+            result["lastSample"] = 0
+            result["lastImage"] = ""
+        else:
+            result["lastSample"] = self.samples[-1]
+            result["lastImage"] = self.images[-1]
+        result["status"] = self.status
+
+        return result
     
 # Create the engine which is used to connect to the database
 engine = create_engine("sqlite://", echo=True)
@@ -211,6 +227,22 @@ async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSamp
     # Update the database 
     firstJob[0].samples.append(int(lastSample))
     firstJob[0].images.append(filePath)
+
+@app.get("/requestAllJobs")
+async def requestAllJobs():
+    '''
+        Return all the jobs in a json format. 
+    '''
+    stmt = select(Job)
+    jobs = session.execute(stmt)
+
+    result = {}
+    result["jobs"] = []
+
+    for job in jobs:
+        result["jobs"].append(job[0].toJobStatusDict())
+    
+    return JSONResponse(content=result)
 
 if __name__ == '__main__':
 
