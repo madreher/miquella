@@ -103,7 +103,7 @@ std::string submitRenderingRequest(const std::string& server,
                             int nSamples,
                             int freqOutput)
 {
-    std::string url = server + ":" + std::to_string(port) + "/submit";
+    std::string url = server + ":" + std::to_string(port) + "/submitJob";
     cpr::Response r = cpr::Post(cpr::Url{url},
         cpr::Parameters{
             {"sceneID", std::to_string(sceneID)},
@@ -113,7 +113,6 @@ std::string submitRenderingRequest(const std::string& server,
 
     if (r.status_code != 200)
     {
-        //std::cerr<<"Error: unable to contact the controller."<<std::endl;
         spdlog::warn("Unable to contact the controller, job not submitted.");
         return "";
     }
@@ -210,6 +209,39 @@ bool cancelJobRequest(const std::string& server, int port, std::string& jobID)
         return true;
     }
 }
+
+bool removeJobRequest(const std::string& server, int port, std::string& jobID)
+{
+    // Create an HTTP request.
+    std::string url = server + ":" + std::to_string(port) + "/removeJob";
+    cpr::Response r = cpr::Post(cpr::Url{url},
+        cpr::Parameters{{"jobID", jobID}});
+
+    if (r.status_code != 200)
+    {
+        spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
+        return false;
+    }
+
+    // Parsing the response
+    json data = json::parse(r.text);
+    if(data.count("error") > 0)
+    {
+        spdlog::warn("Received error from controller: {}", data["error"].get<std::string>());
+        return false;
+    }
+    else if(data.count("status") > 0)
+    {
+        spdlog::info("JobID {} has been removed.", jobID);
+        return true;
+    }
+    else
+    {
+        spdlog::warn("Received unknown response after requesting to remove a job. Body: {}", r.text);
+        return false;
+    }
+}
+
 
 
 int main(int argc, char** argv)
@@ -443,18 +475,38 @@ int main(int argc, char** argv)
                     ImGui::TableSetColumnIndex(7);
                     
                     // Create a unique id for the buttons
-                    std::string buttonLabel = "Cancel##cancelid" + std::to_string(i);
-                    if (ImGui::Button(buttonLabel.c_str()))
+                    if(jobs[i].jobStatus == "RUNNING")
                     {
-                        auto check = cancelJobRequest(serverURL, port, jobs[i].jobID);
-
-                        // Cancel as well the auto retrieve if it was the same jobID
-                        // Doing it here so that it does't require to parse the job table 
-                        // at every update of the table.
-                        if(check && jobID.compare(jobs[i].jobID) == 0)
+                        std::string buttonLabel = "Cancel##cancelid" + std::to_string(i);
+                        if (ImGui::Button(buttonLabel.c_str()))
                         {
-                            spdlog::debug("Canceling auto retrieve of {} as the job has been canceled.", jobID);
-                            autoRetrieve = false;
+                            auto check = cancelJobRequest(serverURL, port, jobs[i].jobID);
+
+                            // Cancel as well the auto retrieve if it was the same jobID
+                            // Doing it here so that it does't require to parse the job table 
+                            // at every update of the table.
+                            if(check && jobID.compare(jobs[i].jobID) == 0)
+                            {
+                                spdlog::debug("Canceling auto retrieve of {} as the job has been canceled.", jobID);
+                                autoRetrieve = false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        std::string buttonLabel = "Remove##removeid" + std::to_string(i);
+                        if (ImGui::Button(buttonLabel.c_str()))
+                        {
+                            auto check = removeJobRequest(serverURL, port, jobs[i].jobID);
+
+                            // Cancel as well the auto retrieve if it was the same jobID
+                            // Doing it here so that it does't require to parse the job table 
+                            // at every update of the table.
+                            if(check && jobID.compare(jobs[i].jobID) == 0)
+                            {
+                                spdlog::debug("Canceling auto retrieve of {} as the job has been removed.", jobID);
+                                autoRetrieve = false;
+                            }
                         }
                     }
                 }
