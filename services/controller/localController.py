@@ -146,9 +146,15 @@ async def updateLocalJobExec(jobID : str, filePath : str, lastSample : int):
     
     firstJob[0].samples.append(lastSample)
     firstJob[0].images.append(filePath)
+
     if lastSample == firstJob[0].nSamples:
         firstJob[0].status = "COMPLETED"
     session.commit()
+
+    # Return the status of the job so that the server knows if it can continue
+    result = {}
+    result["status"] = firstJob[0].status
+    return JSONResponse(content=result)
 
 @app.post("/cancelJob")
 async def cancelJob(jobID : str):
@@ -262,8 +268,8 @@ async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSamp
     firstJob[0].samples.append(int(lastSample))
     firstJob[0].images.append(filePath)
 
-@app.get("/requestAllJobs")
-async def requestAllJobs():
+@app.get("/requestListAllJobs")
+async def requestListAllJobs():
     '''
         Return all the jobs in a json format. 
     '''

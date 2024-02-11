@@ -454,7 +454,26 @@ void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
                     {"filePath", absPath.string()},
                     {"lastSample", std::to_string(i)}
                     });  
-                spdlog::debug("Update local server return code: {}", r.status_code);
+                
+
+                // Check the status of the job 
+                if(r.status_code == 200)
+                {
+                    json data = json::parse(r.text);
+                    if(data.count("status") == 0)
+                    {
+                        spdlog::warn("Unable to parse the status when sending a sample update to the local controller. Response: {}", r.text);
+                    }
+                    else if(data["status"].get<std::string>().compare("RUNNING") != 0)
+                    {
+                        spdlog::info("Job status changed to {}, stopping the job loop.", data["status"].get<std::string>());
+                        break;
+                    }
+                }
+                else 
+                {
+                    spdlog::debug("Update local server return code: {}", r.status_code);
+                }
 
             }
 
@@ -564,8 +583,8 @@ int main(int argc, char** argv)
             std::string url = serverURL + ":" + std::to_string(port) + "/requestJob";
             cpr::Response r = cpr::Post(cpr::Url{url});
 
-            spdlog::debug("Return code: {}", r.status_code);
-            spdlog::debug("Body: {}", r.text);
+            //spdlog::debug("Return code: {}", r.status_code);
+            //spdlog::debug("Body: {}", r.text);
 
             if(r.status_code != 200)
             {
@@ -580,7 +599,7 @@ int main(int argc, char** argv)
             json data = json::parse(r.text);
             if(data.empty())
             {
-                spdlog::info("No job available on the controller.");
+                spdlog::debug("No job available on the controller.");
                 std::this_thread::sleep_for(std::chrono::seconds(5));
                 continue;
             }

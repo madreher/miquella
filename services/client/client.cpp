@@ -164,7 +164,7 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
 bool fullListOfJobsRequest(const std::string& server, int port, std::vector<JobSatus>& jobList)
 {
     // Create an HTTP request.
-    std::string url = server + ":" + std::to_string(port) + "/requestAllJobs";
+    std::string url = server + ":" + std::to_string(port) + "/requestListAllJobs";
     cpr::Response r = cpr::Get(cpr::Url{url});
 
     if (r.status_code != 200)
