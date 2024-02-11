@@ -42,6 +42,22 @@ class Job(Base):
         result["freqOutput"] = self.freqOutout
 
         return result
+
+    def toJobStatusDict(self) -> dict:
+        result = {}
+        result["jobID"] = self.jobID
+        result["sceneID"] = self.sceneID
+        result["nSamples"] = self.nSamples
+        result["freqOutput"] = self.freqOutout
+        if len(self.samples) == 0:
+            result["lastSample"] = 0
+            result["lastImage"] = ""
+        else:
+            result["lastSample"] = self.samples[-1]
+            result["lastImage"] = self.images[-1]
+        result["status"] = self.status
+
+        return result
     
 # Create the engine which is used to connect to the database
 engine = create_engine("sqlite://", echo=True)
@@ -68,7 +84,7 @@ SAMPLE_FOLDER = os.path.join(CONTROLLER_FOLDER, "samples")
 
 
 
-@app.post("/submit")
+@app.post("/submitJob")
 async def create_rendering_job(sceneID : int = 3, nSamples : int = 1000, freqOutput : int = 50):
     '''
         Send a query to perform a rendering task.
@@ -126,13 +142,81 @@ async def updateLocalJobExec(jobID : str, filePath : str, lastSample : int):
     firstJob = jobs.first()
     
     if firstJob is None:
-        raise RuntimeError("Received an unknown JobID")
+        # The job either doesn't exist or have been deleted. 
+        result = {}
+        result["status"] = "REMOVED"
+        return JSONResponse(content=result)
     
     firstJob[0].samples.append(lastSample)
     firstJob[0].images.append(filePath)
+
     if lastSample == firstJob[0].nSamples:
         firstJob[0].status = "COMPLETED"
     session.commit()
+
+    # Return the status of the job so that the server knows if it can continue
+    result = {}
+    result["status"] = firstJob[0].status
+    return JSONResponse(content=result)
+
+@app.post("/cancelJob")
+async def cancelJob(jobID : str):
+    '''
+    Cancel a job which is either in pending or running state.
+    '''
+
+    # Select the job
+    stmt = select(Job).where(Job.jobID == jobID)
+    jobs = session.execute(stmt)
+
+    # Dev warning: first() cancel the rest of the potential row in the result
+    # and close the result. Can't call first() again on jobs after this
+    firstJob = jobs.first()
+    
+    if firstJob is None:
+        result = {
+            "error" : "Job does not exist."
+        }
+        return JSONResponse(content=result)
+    
+    if firstJob[0].status == "COMPLETED":
+        result = {
+            "error" : "Job is already completed. Nothing to "
+        }
+        return JSONResponse(content=result)
+    
+    # Updating the status of the job.
+    firstJob[0].status = "CANCELED"
+    session.commit()
+
+    result = { "status" : "CANCELED"}
+    return JSONResponse(content=result)
+
+@app.post("/removeJob")
+async def removeJob(jobID : str):
+    '''
+    Remove a job from the database regardless of its current status.
+    '''
+    stmt = select(Job).where(Job.jobID == jobID)
+    jobs = session.execute(stmt)
+
+    # Dev warning: first() cancel the rest of the potential row in the result
+    # and close the result. Can't call first() again on jobs after this
+    firstJob = jobs.first()
+    
+    if firstJob is None:
+        result = {
+            "error" : "Job does not exist."
+        }
+        return JSONResponse(content=result)
+
+    session.delete(firstJob[0])
+    session.commit()
+
+    result = {
+        "status" : "REMOVED"
+    }
+    return JSONResponse(content=result)
 
 @app.get("/requestLastLocalSample")
 async def requestLastLocalSample(jobID : str):
@@ -160,7 +244,9 @@ async def requestLastLocalSample(jobID : str):
 
     if len(firstJob[0].samples) == 0:
         result = {
-            "error" : "No samples received yet."
+            "lastSample" : 0,
+            "image" : "",
+            "status" : firstJob[0].status
         }
         return JSONResponse(content=result)
     else:
@@ -211,6 +297,22 @@ async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSamp
     # Update the database 
     firstJob[0].samples.append(int(lastSample))
     firstJob[0].images.append(filePath)
+
+@app.get("/requestListAllJobs")
+async def requestListAllJobs():
+    '''
+        Return all the jobs in a json format. 
+    '''
+    stmt = select(Job)
+    jobs = session.execute(stmt)
+
+    result = {}
+    result["jobs"] = []
+
+    for job in jobs:
+        result["jobs"].append(job[0].toJobStatusDict())
+    
+    return JSONResponse(content=result)
 
 if __name__ == '__main__':
 
