@@ -150,6 +150,40 @@ async def updateLocalJobExec(jobID : str, filePath : str, lastSample : int):
         firstJob[0].status = "COMPLETED"
     session.commit()
 
+@app.post("/cancelJob")
+async def cancelJob(jobID : str):
+    '''
+    Cancel a job which is either in pending or running state.
+    '''
+
+    # Select the job
+    stmt = select(Job).where(Job.jobID == jobID)
+    jobs = session.execute(stmt)
+
+    # Dev warning: first() cancel the rest of the potential row in the result
+    # and close the result. Can't call first() again on jobs after this
+    firstJob = jobs.first()
+    
+    if firstJob is None:
+        result = {
+            "error" : "Job does not exist."
+        }
+        return JSONResponse(content=result)
+    
+    if firstJob[0].status == "COMPLETED":
+        result = {
+            "error" : "Job is already completed. Nothing to "
+        }
+        return JSONResponse(content=result)
+    
+    # Updating the status of the job.
+    firstJob[0].status = "CANCELED"
+    session.commit()
+
+    result = { "status" : "CANCELD"}
+    return JSONResponse(content=result)
+
+
 @app.get("/requestLastLocalSample")
 async def requestLastLocalSample(jobID : str):
     '''

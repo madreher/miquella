@@ -184,6 +184,33 @@ bool fullListOfJobsRequest(const std::string& server, int port, std::vector<JobS
     return true;
 }
 
+bool cancelJobRequest(const std::string& server, int port, std::string& jobID)
+{
+    // Create an HTTP request.
+    std::string url = server + ":" + std::to_string(port) + "/cancelJob";
+    cpr::Response r = cpr::Post(cpr::Url{url},
+        cpr::Parameters{{"jobID", jobID}});
+
+    if (r.status_code != 200)
+    {
+        spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
+        return false;
+    }
+
+    // Parsing the response
+    json data = json::parse(r.text);
+    if(data.count("error") > 0)
+    {
+        spdlog::warn("Received error from controller: {}", data["error"].get<std::string>());
+        return false;
+    }
+    else
+    {
+        spdlog::info("JobID {} has been cancelled.", jobID);
+        return true;
+    }
+}
+
 
 int main(int argc, char** argv)
 {
@@ -319,7 +346,8 @@ int main(int argc, char** argv)
     int lastSample = 0;
     bool autoRetrieve = false;
     int refreshRate = 5;
-    auto lastRetrieve = std::chrono::system_clock::now();
+    auto lastAutoSampleRetrieve = std::chrono::system_clock::now();
+    auto lastJoblistRetrieve = std::chrono::system_clock::now();
     std::string jobStatus = "";
 
     std::vector<JobSatus> jobs;
@@ -383,7 +411,7 @@ int main(int argc, char** argv)
             //ImGui::CheckboxFlags("ImGuiTableFlags_NoBordersInBody", &flags, ImGuiTableFlags_NoBordersInBody);
             //ImGui::CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags, ImGuiTableFlags_NoBordersInBodyUntilResize); ImGui::SameLine(); ImGui::HelpMarker("Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers)");
             PopStyleCompact();
-            if (ImGui::BeginTable("jobs", 7, flags))
+            if (ImGui::BeginTable("jobs", 8, flags))
             {
                 ImGui::TableSetupColumn("JobID");
                 ImGui::TableSetupColumn("Status");
@@ -392,6 +420,7 @@ int main(int argc, char** argv)
                 ImGui::TableSetupColumn("Last image");
                 ImGui::TableSetupColumn("Scene ID");
                 ImGui::TableSetupColumn("Output freq");
+                ImGui::TableSetupColumn("Action");
                 ImGui::TableHeadersRow();
 
                 for(size_t i = 0; i < jobs.size(); ++i)
@@ -411,6 +440,23 @@ int main(int argc, char** argv)
                     ImGui::Text("%i", jobs[i].sceneID);
                     ImGui::TableSetColumnIndex(6);
                     ImGui::Text("%i", jobs[i].freqOutput);
+                    ImGui::TableSetColumnIndex(7);
+                    
+                    // Create a unique id for the buttons
+                    std::string buttonLabel = "Cancel##cancelid" + std::to_string(i);
+                    if (ImGui::Button(buttonLabel.c_str()))
+                    {
+                        auto check = cancelJobRequest(serverURL, port, jobs[i].jobID);
+
+                        // Cancel as well the auto retrieve if it was the same jobID
+                        // Doing it here so that it does't require to parse the job table 
+                        // at every update of the table.
+                        if(check && jobID.compare(jobs[i].jobID) == 0)
+                        {
+                            spdlog::debug("Canceling auto retrieve of {} as the job has been canceled.", jobID);
+                            autoRetrieve = false;
+                        }
+                    }
                 }
                 ImGui::EndTable();
             }
@@ -529,7 +575,7 @@ int main(int argc, char** argv)
         if(autoRetrieve && jobID.size() > 0)
         {
             auto now = std::chrono::system_clock::now();
-            auto timeElapsed = std::chrono::duration<double>( now - lastRetrieve);
+            auto timeElapsed = std::chrono::duration<double>( now - lastAutoSampleRetrieve);
             
             if(timeElapsed.count() > static_cast<double>(refreshRate))
             {
@@ -551,19 +597,25 @@ int main(int argc, char** argv)
                     autoRetrieve = false;
                 }
 
-                // TEST
-                jobs.clear();
-                if(fullListOfJobsRequest(serverURL, port, jobs))
-                {
-                    spdlog::info("Received a list of {} jobs.", jobs.size());
-                }
-                else
-                {
-                    spdlog::info("Failed to receive the list of jobs.");
-                }
-
-                lastRetrieve = std::chrono::system_clock::now();
+                lastAutoSampleRetrieve = std::chrono::system_clock::now();
             }
+        }
+
+        // Retrieve the job list
+        auto now = std::chrono::system_clock::now();
+        auto timeElapsed = std::chrono::duration<double>(now - lastJoblistRetrieve);
+        if(timeElapsed.count() > static_cast<double>(refreshRate))
+        {
+            jobs.clear();
+            if(fullListOfJobsRequest(serverURL, port, jobs))
+            {
+                spdlog::debug("Received a list of {} jobs.", jobs.size());
+            }
+            else
+            {
+                spdlog::warn("Failed to receive the list of jobs from the controller.");
+            }
+            lastJoblistRetrieve = std::chrono::system_clock::now();
         }
 
         if(image.image.size() > 0)
