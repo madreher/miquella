@@ -422,14 +422,21 @@ void generateGlassCornell(miquella::core::Renderer& renderer)
 
 void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
                 size_t sceneID, 
-                bool queryController,
-                bool queryControllerRemote, 
+                bool remote,
                 size_t maxSamples,
                 size_t outputFrequency,
-                const std::string& jobID)
+                const std::string& jobID,
+                const std::string& serverURL,
+                int port)
 {
     miquella::core::RendererThreads renderer;
     scenes[sceneID](renderer);
+
+    std::string serverAddr = serverURL + ":" + std::to_string(port);
+    if(remote)
+        serverAddr += "/updateRemoteJobExec";
+    else
+        serverAddr += "/updateLocalJobExec";
 
     for(size_t i = 1; i <= maxSamples; ++i)
     {
@@ -445,10 +452,26 @@ void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
             renderer.writeToPPM(absPath.string());
             spdlog::debug("Sample {} saved to file {}.", i, absPath.string());
 
-            if(queryController)
+            // Manual method with cppRestsdk, didn't work
+            // source: https://stackoverflow.com/questions/56497375/cpprestsdk-how-to-post-multipart-data
+            // Switching to CPR
+            if(remote)
+            {
+                // IMPORTANT: the part name "file" must match the parameter name in the 
+                // controller function!
+                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateRemoteJobExec"},
+                cpr::Multipart{
+                    {"file", cpr::File{absPath.string()}},
+                    {"jobID", jobID},
+                    {"lastSample", std::to_string(i)}
+                    });
+
+                spdlog::debug("Update remote server return code: {}", r.status_code);
+            }
+            else 
             {
                 // Notify the controller that we have a new sample image
-                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateLocalJobExec"},
+                cpr::Response r = cpr::Post(cpr::Url{serverAddr},
                 cpr::Parameters{
                     {"jobID", jobID},
                     {"filePath", absPath.string()},
@@ -476,23 +499,6 @@ void runRenderer(std::vector<void (*)(miquella::core::Renderer&)>& scenes,
                 }
 
             }
-
-            // Manual method with cppRestsdk, didn't work
-            // source: https://stackoverflow.com/questions/56497375/cpprestsdk-how-to-post-multipart-data
-            // Switching to CPR
-            if(queryControllerRemote)
-            {
-                // IMPORTANT: the part name "file" must match the parameter name in the 
-                // controller function!
-                cpr::Response r = cpr::Post(cpr::Url{"http://localhost:8000/updateRemoteJobExec"},
-                cpr::Multipart{
-                    {"file", cpr::File{absPath.string()}},
-                    {"jobID", jobID},
-                    {"lastSample", std::to_string(i)}
-                    });
-
-                spdlog::debug("Update remote server return code: {}", r.status_code);
-            }
         }
     }
 }
@@ -504,10 +510,11 @@ int main(int argc, char** argv)
 
     size_t maxSamples = 1000;
     size_t outputFrequency = 20;
-    bool queryController = true;
-    bool queryControllerRemote = false;
+    bool remote = false;
     std::string jobID;
     std::string loglvl = "info";
+    std::string serverURL = "http://localhost";
+    int port = 8000;
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
     scenes.push_back(generateScene1);
@@ -529,15 +536,18 @@ int main(int argc, char** argv)
         | lyra::opt( outputFrequency, "freq" )
             ["--freq"]
             ("Output image frequency")
-        | lyra::opt( queryController )
-            ["-q"]["--query"]
-            ("Query the default controller to get a rendering job" )
+        | lyra::opt( remote )
+            ["-r"]["--remote"]
+            ("Query a remote controller to get a rendering job" )
         | lyra::opt( loglvl, "loglvl")
             ["--loglvl"]
             ("Log level to apply. info (default), warn, critical, debug")
-        | lyra::opt( queryControllerRemote )
-            ["-qr"]["--queryRemote"]
-            ("Query the default remote controller to get a rendering job" );
+        | lyra::opt( serverURL, "controllerurl" )
+            ["--controller"]
+            ("URL of the controller to contact to query rendering jobs.")
+        | lyra::opt( port, "port" )
+            ["-p"]["--port"]
+            ("Port to use to contact the controller.");
 
     auto result = cli.parse( { argc, argv } );
     if ( !result )
@@ -574,56 +584,49 @@ int main(int argc, char** argv)
     
     while(1)
     {
-        // We don't have a job yet, querying the controller
-        if(queryController || queryControllerRemote)
+        std::string url = serverURL + ":" + std::to_string(port) + "/requestJob";
+        cpr::Response r = cpr::Post(cpr::Url{url});
+
+        //spdlog::debug("Return code: {}", r.status_code);
+        //spdlog::debug("Body: {}", r.text);
+
+        if(r.status_code != 200)
         {
-            std::string serverURL = "http://localhost";
-            int port = 8000;
+            //std::cerr<<"Error while querying for a job. Abording."<<std::endl;
+            //return 0;
+            spdlog::warn("Unable to contact the controller.");
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            continue;
+        }
 
-            std::string url = serverURL + ":" + std::to_string(port) + "/requestJob";
-            cpr::Response r = cpr::Post(cpr::Url{url});
+        // Parsing the text
+        json data = json::parse(r.text);
+        if(data.empty())
+        {
+            spdlog::debug("No job available on the controller.");
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            continue;
+        }
+        else if(data.count("jobID") > 0)
+        {
+            jobID = data.at("jobID").get<std::string>();
+            sceneID = data.at("sceneID").get<size_t>();
+            maxSamples = data.at("nSamples").get<size_t>();
+            outputFrequency = data.at("freqOutput").get<size_t>();
+            spdlog::info("Rendering job {} received from the controller.", jobID);
 
-            //spdlog::debug("Return code: {}", r.status_code);
-            //spdlog::debug("Body: {}", r.text);
+            auto start = std::chrono::steady_clock::now();
+            // Rendering the scene
+            runRenderer(scenes, sceneID, remote, maxSamples, outputFrequency, jobID, serverURL, port);
+            auto end = std::chrono::steady_clock::now();
+            std::chrono::duration<double> elapsed(end - start);
 
-            if(r.status_code != 200)
-            {
-                //std::cerr<<"Error while querying for a job. Abording."<<std::endl;
-                //return 0;
-                spdlog::warn("Unable to contact the controller.");
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-                continue;
-            }
-
-            // Parsing the text
-            json data = json::parse(r.text);
-            if(data.empty())
-            {
-                spdlog::debug("No job available on the controller.");
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-                continue;
-            }
-            else if(data.count("jobID") > 0)
-            {
-                jobID = data.at("jobID").get<std::string>();
-                sceneID = data.at("sceneID").get<size_t>();
-                maxSamples = data.at("nSamples").get<size_t>();
-                outputFrequency = data.at("freqOutput").get<size_t>();
-                spdlog::info("Rendering job {} received from the controller.", jobID);
-
-                auto start = std::chrono::steady_clock::now();
-                // Rendering the scene
-                runRenderer(scenes, sceneID, queryController, queryControllerRemote, maxSamples, outputFrequency, jobID);
-                auto end = std::chrono::steady_clock::now();
-                std::chrono::duration<double> elapsed(end - start);
-
-                spdlog::info("Rendering Job {} completed in {}s.", jobID, elapsed.count());
-            }
-            else
-            {
-                spdlog::critical("jobID not found in the request job response. Aborting.");
-                return 0;
-            }
+            spdlog::info("Rendering Job {} completed in {}s.", jobID, elapsed.count());
+        }
+        else
+        {
+            spdlog::critical("jobID not found in the request job response. Aborting.");
+            return 0;
         }
 
     }

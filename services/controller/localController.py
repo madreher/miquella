@@ -10,7 +10,6 @@ from jobTable import JobDatabase
 
 import uvicorn
 import os
-import uuid
 
 ################################ DATABASE ###################################
 database = JobDatabase(databasePath="sqlite://", echo=True, createDatabase=True)
@@ -94,37 +93,25 @@ async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSamp
         Upload a sample image and store it locally. The file is then 
         move to a local folder which is saved in the database.
     '''
-    raise NotImplementedError("Remove job execution is not supported yet.")
-    #contents = await file.read()
+    contents = await file.read()
 
-    #filename = file.filename
+    filename = file.filename
     
-    #if filename == '':
-    #    result =  {'error': 'No file selected for uploading'}
-    #    return JSONResponse(content=result)
+    if filename == '':
+        result =  {'error': 'No file selected for uploading'}
+        return JSONResponse(content=result)
 
-    #jobFolder = os.path.join(SAMPLE_FOLDER, jobID)
-    #if not os.path.isdir(jobFolder):
-    #    os.mkdir( jobFolder )
+    jobFolder = os.path.join(SAMPLE_FOLDER, jobID)
+    if not os.path.isdir(jobFolder):
+        os.mkdir( jobFolder )
 
-    #filePath = os.path.join(jobFolder, filename)
-    #with open( filePath, "wb") as f:
-    #    f.write(contents)
+    filePath = os.path.join(jobFolder, filename)
+    with open( filePath, "wb") as f:
+        f.write(contents)
+        f.close()
 
-    
-    #stmt = select(Job).where(Job.jobID == jobID)
-    #jobs = session.execute(stmt)
-    
-    # Dev warning: first() cancel the rest of the potential row in the result
-    # and close the result. Can't call first() again on jobs after this
-    #firstJob = jobs.first()
-    
-    #if firstJob is None:
-    #    raise RuntimeError("JobID given when calling updateRemoveJobExec is not found in the database.")
-    
-    # Update the database 
-    #firstJob[0].samples.append(int(lastSample))
-    #firstJob[0].images.append(filePath)
+    result = database.addSampleToJob(jobID=jobID, filePath=filePath, lastSample=int(lastSample))
+    return result
 
 @app.get("/requestListAllJobs")
 async def requestListAllJobs():
