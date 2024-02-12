@@ -160,6 +160,40 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
     }
 }
 
+std::tuple<std::string, int, std::string> lastRemoteSampleRequest(const std::string& server,
+                            int port,
+                            const std::string& jobID)
+{
+    // Create an HTTP request.
+    std::string url = server + ":" + std::to_string(port) + "/requestLastRemoteSample";
+    cpr::Response r = cpr::Get(cpr::Url{url},
+        cpr::Parameters{{"jobID", jobID}});
+
+    if (r.status_code != 200)
+    {
+        spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
+        return {"", 0, ""};
+    }
+
+    if(r.header.count("error") > 0)
+    {
+        spdlog::warn("Received error from controller: {}", r.header["error"]);
+        return {"", 0, ""};
+    }
+    else 
+    {
+        // Parsing the response
+        //std::string image = r.header["image"];
+        int lastSample = std::stoi(r.header["lastSample"]);
+        std::string status = r.header["status"];
+        //spdlog::info("Image: {}, lastSample: {}, status: {}", image, lastSample, status);
+
+        return {r.text, lastSample, status};
+    }
+
+    
+}
+
 bool fullListOfJobsRequest(const std::string& server, int port, std::vector<JobSatus>& jobList)
 {
     // Create an HTTP request.
@@ -381,6 +415,7 @@ int main(int argc, char** argv)
     auto lastAutoSampleRetrieve = std::chrono::system_clock::now();
     auto lastJoblistRetrieve = std::chrono::system_clock::now();
     std::string jobStatus = "";
+    bool remote = true;
 
     std::vector<JobSatus> jobs;
 
@@ -601,15 +636,30 @@ int main(int argc, char** argv)
             // Retrieve last sample
             if (ImGui::Button("Retrive last sample"))
             {
-                auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
-                lastSample = sample;
-                jobStatus = status;
-                if(filePath.size() > 0)
+                if(remote)
                 {
-                    std::ifstream file;
-                    file.open(filePath);
-                    image = miquella::core::io::readPPM(file);
-                    spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    auto [ content, sample, status ] = lastRemoteSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+                    if(sample > 0)
+                    {
+                        std::istringstream iss(content);
+                        image = miquella::core::io::readPPM(iss);
+                        spdlog::debug("Loading sample {} from content request", lastSample);
+                    }
+                }
+                else 
+                {
+                    auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+                    if(filePath.size() > 0)
+                    {
+                        std::ifstream file;
+                        file.open(filePath);
+                        image = miquella::core::io::readPPM(file);
+                        spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    }
                 }
             }
 
@@ -631,18 +681,34 @@ int main(int argc, char** argv)
             
             if(timeElapsed.count() > static_cast<double>(refreshRate))
             {
-                auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
-                lastSample = sample;
-                jobStatus = status;
-                if(filePath.size() > 0)
+                if(remote)
                 {
-                    std::ifstream file;
-                    file.open(filePath);
-                    image = miquella::core::io::readPPM(file);
-                    spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    auto [ content, sample, status ] = lastRemoteSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+                    if(sample > 0)
+                    {
+                        std::istringstream iss(content);
+                        image = miquella::core::io::readPPM(iss);
+                        spdlog::debug("Loading sample {} from content request", lastSample);
+                    }
+                }
+                else
+                {
+                    auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+
+                    if(filePath.size() > 0)
+                    {
+                        std::ifstream file;
+                        file.open(filePath);
+                        image = miquella::core::io::readPPM(file);
+                        spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    }
                 }
 
-                if(status == "COMPLETED")
+                if(jobStatus == "COMPLETED")
                 {
                     // Disabling the auto retrieve
                     spdlog::info("Last frame of the job received. Disabling Auto Retrieve.");

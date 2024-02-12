@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import JSONResponse,Response
+from fastapi.responses import JSONResponse,Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import FastAPI, File, UploadFile
@@ -78,10 +78,24 @@ async def removeJob(jobID : str):
 @app.get("/requestLastLocalSample")
 async def requestLastLocalSample(jobID : str):
     '''
-        Return the last sample image associated with a job ID
+        Return the last sample image associated with a job ID. The image is provided as a file path
+        and assumes that the client has access to the same filesystem as the client.
     '''
     result = database.getLastSampleFromJob(jobID=jobID)
     return JSONResponse(content=result)
+
+
+@app.get("/requestLastRemoteSample")
+async def requestLastRemoteSample(jobID : str):
+    '''
+    Return the last sample image associated with a job ID. The image is provided for download 
+    and is meant for cases where the controller and the client are not on the same filesystem.
+    '''
+    result = database.getLastSampleFromJob(jobID=jobID)
+
+    # Convert the result to str 
+    result["lastSample"] = str(result["lastSample"])
+    return FileResponse(path=result["image"], headers=result)
 
 async def parse_body(request: Request):
     data: bytes = await request.body()
