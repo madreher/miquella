@@ -12,7 +12,7 @@ import uvicorn
 import os
 
 ################################ DATABASE ###################################
-database = JobDatabase(databasePath="sqlite://", echo=True, createDatabase=True)
+database = JobDatabase(databasePath="sqlite://", echo=False, createDatabase=True)
 ################################ DATABASE ###################################
 
 ################################ WEBSERVER ###################################
@@ -94,7 +94,8 @@ async def requestLastRemoteSample(jobID : str):
     result = database.getLastSampleFromJob(jobID=jobID)
 
     # Convert the result to str 
-    result["lastSample"] = str(result["lastSample"])
+    if "lastSample" in result:
+        result["lastSample"] = str(result["lastSample"])
     return FileResponse(path=result["image"], headers=result)
 
 async def parse_body(request: Request):

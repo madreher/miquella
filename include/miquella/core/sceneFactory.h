@@ -3,7 +3,14 @@
 #include <map>
 #include <cstdint>
 
+#include <miquella/core/simpleCamera.h>
+#include <miquella/core/lookAtCamera.h>
 #include <miquella/core/scene.h>
+#include <miquella/core/lambertian.h>
+#include <miquella/core/metal.h>
+#include <miquella/core/dielectric.h>
+#include <miquella/core/diffuseLight.h>
+#include <miquella/core/rectangle.h>
 
 namespace miquella {
 
@@ -145,7 +152,7 @@ private:
             auto b = miquella::core::randomFloat(0.0f, 1.0f);
 
             auto mat = std::make_shared<miquella::core::Lambertian>(glm::vec3(r, g, b));
-            std::cout<<"Sphere "<<i<<" ("<<x<<","<<y<<","<<z<<")"<<std::endl;
+            //std::cout<<"Sphere "<<i<<" ("<<x<<","<<y<<","<<z<<")"<<std::endl;
             auto sphere = std::make_shared<miquella::core::Sphere>(glm::vec3(x,y,z), 0.5f, mat);
             scene->addObject(sphere);
         }

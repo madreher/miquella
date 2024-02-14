@@ -415,6 +415,7 @@ int main(int argc, char** argv)
 {
 
     size_t sceneID = 3;
+    int nbThreads = 1;
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
     scenes.push_back(generateScene1);
@@ -429,7 +430,10 @@ int main(int argc, char** argv)
     auto cli = lyra::cli()
         | lyra::opt( sceneID, "sceneid" )
             ["--scene-id"]
-            ("0: 3 balls, 1: random balls, 2: rectangle light, 3: RaytracingOneWeekend, 4: Lambertien test, 5: Dieletric test, 6: Empty cornel, 7: Glass cornel");
+            ("0: 3 balls, 1: random balls, 2: rectangle light, 3: RaytracingOneWeekend, 4: Lambertien test, 5: Dieletric test, 6: Empty cornel, 7: Glass cornel")
+        | lyra::opt( nbThreads, "nthreads" )
+            ["--nthreads"]
+            ("Number of threads to use by the renderer.");
 
     auto result = cli.parse( { argc, argv } );
     if ( !result )
@@ -507,6 +511,7 @@ int main(int argc, char** argv)
     //miquella::core::Renderer renderer;
     miquella::core::RendererThreads renderer;
     scenes[sceneID](renderer);
+    renderer.setNbThreads(nbThreads);
     //generateScene1(renderer);             // 3 balls
     //generateScene2(renderer);             // Random balls
     //generateScene3(renderer);             // Test rectangle light

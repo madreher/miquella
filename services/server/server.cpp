@@ -18,18 +18,9 @@
 
 #include <lyra/lyra.hpp>
 
-#include <miquella/core/ray.h>
-#include <miquella/core/simpleCamera.h>
-#include <miquella/core/lookAtCamera.h>
-#include <miquella/core/scene.h>
 #include <miquella/core/renderer.h>
 #include <miquella/core/rendererThreads.h>
 #include <miquella/core/utility.h>
-#include <miquella/core/lambertian.h>
-#include <miquella/core/metal.h>
-#include <miquella/core/dielectric.h>
-#include <miquella/core/diffuseLight.h>
-#include <miquella/core/rectangle.h>
 #include <miquella/core/sceneFactory.h>
 
 #include <miquella/http/http.h>
@@ -58,7 +49,8 @@ void runRenderer(
                 size_t outputFrequency,
                 const std::string& jobID,
                 const std::string& serverURL,
-                int port)
+                int port,
+                int nbThreads)
 {
     miquella::core::SceneFactory sceneFactory;
     auto [ scene, camera, background ] = sceneFactory.createScene(miquella::core::SceneID(sceneID));
@@ -67,6 +59,7 @@ void runRenderer(
     renderer.setScene(scene);
     renderer.setCamera(camera);
     renderer.setBackground(background);
+    renderer.setNbThreads(nbThreads);
 
     for(size_t i = 1; i <= maxSamples; ++i)
     {
@@ -128,6 +121,7 @@ int main(int argc, char** argv)
     std::string loglvl = "info";
     std::string serverURL = "http://localhost";
     int port = 8000;
+    int nbThreads = 1;
 
     auto cli = lyra::cli()
         | lyra::opt( sceneID, "sceneid" )
@@ -150,7 +144,10 @@ int main(int argc, char** argv)
             ("URL of the controller to contact to query rendering jobs.")
         | lyra::opt( port, "port" )
             ["-p"]["--port"]
-            ("Port to use to contact the controller.");
+            ("Port to use to contact the controller.")
+        | lyra::opt( nbThreads, "nthreads" )
+            ["--nthreads"]
+            ("Number of threads to use by the renderer.");
 
     auto result = cli.parse( { argc, argv } );
     if ( !result )
@@ -215,7 +212,7 @@ int main(int argc, char** argv)
 
             auto start = std::chrono::steady_clock::now();
             // Rendering the scene
-            runRenderer(sceneID, remote, maxSamples, outputFrequency, jobID, serverURL, port);
+            runRenderer(sceneID, remote, maxSamples, outputFrequency, jobID, serverURL, port, nbThreads);
             auto end = std::chrono::steady_clock::now();
             std::chrono::duration<double> elapsed(end - start);
 
