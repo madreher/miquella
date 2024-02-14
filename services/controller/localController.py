@@ -93,10 +93,14 @@ async def requestLastRemoteSample(jobID : str):
     '''
     result = database.getLastSampleFromJob(jobID=jobID)
 
+
     # Convert the result to str 
     if "lastSample" in result:
         result["lastSample"] = str(result["lastSample"])
-    return FileResponse(path=result["image"], headers=result)
+    if "image" in result and result["image"] != "":
+        return FileResponse(path=result["image"], headers=result)
+    else:
+        return JSONResponse(content = {}, headers=result)
 
 async def parse_body(request: Request):
     data: bytes = await request.body()
