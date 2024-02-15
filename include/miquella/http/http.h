@@ -8,15 +8,18 @@
 using json = nlohmann::json;
 
 
-#define CONTROLLER_UPDATE_REMOTE_JOB            "/updateRemoteJobExec"
-#define CONTROLLER_UPDATE_LOCAL_JOB             "/updateLocalJobExec"
-#define CONTROLLER_REQUEST_JOB                  "/requestJob"
-#define CONTROLLER_SUBMIT_JOB                   "/submitJob"
-#define CONTROLLER_REQUEST_LAST_LOCAL_SAMPLE    "/requestLastLocalSample"
-#define CONTROLLER_REQUEST_LAST_REMOTE_SAMPLE   "/requestLastRemoteSample"
-#define CONTROLLER_REQUEST_LIST_JOB             "/requestListAllJobs"
-#define CONTROLLER_CANCEL_JOB                   "/cancelJob"
-#define CONTROLLER_REMOVE_JOB                   "/removeJob"
+// Actual type is std::string_view, not std::string. std::string was 
+// supposed to be working for c++20 but doesn't seem to be supported 
+// universally
+constexpr auto CONTROLLER_UPDATE_REMOTE_JOB          = "/updateRemoteJobExec";
+constexpr auto CONTROLLER_UPDATE_LOCAL_JOB           = "/updateLocalJobExec";
+constexpr auto CONTROLLER_REQUEST_JOB                = "/requestJob";
+constexpr auto CONTROLLER_SUBMIT_JOB                 = "/submitJob";
+constexpr auto CONTROLLER_REQUEST_LAST_LOCAL_SAMPLE  = "/requestLastLocalSample";
+constexpr auto CONTROLLER_REQUEST_LAST_REMOTE_SAMPLE = "/requestLastRemoteSample";
+constexpr auto CONTROLLER_REQUEST_LIST_JOB           = "/requestListAllJobs";
+constexpr auto CONTROLLER_CANCEL_JOB                 = "/cancelJob";
+constexpr auto CONTROLLER_REMOVE_JOB                 = "/removeJob";
 
 namespace miquella 
 {

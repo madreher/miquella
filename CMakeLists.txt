@@ -47,7 +47,7 @@ set_project_warnings(MQ_project_warnings)
 # Link this 'library' to set the c++ standard / compile-time options requested
 add_library(MQ_project_options INTERFACE)
 #######################################################################################
-target_compile_features(MQ_project_options INTERFACE cxx_std_17)
+target_compile_features(MQ_project_options INTERFACE cxx_std_20)
 
 target_compile_definitions(MQ_project_options
                             INTERFACE
