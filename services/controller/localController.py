@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import JSONResponse,Response
+from fastapi.responses import JSONResponse,Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import FastAPI, File, UploadFile
@@ -10,10 +10,9 @@ from jobTable import JobDatabase
 
 import uvicorn
 import os
-import uuid
 
 ################################ DATABASE ###################################
-database = JobDatabase(databasePath="sqlite://", echo=True, createDatabase=True)
+database = JobDatabase(databasePath="sqlite://", echo=False, createDatabase=True)
 ################################ DATABASE ###################################
 
 ################################ WEBSERVER ###################################
@@ -79,10 +78,29 @@ async def removeJob(jobID : str):
 @app.get("/requestLastLocalSample")
 async def requestLastLocalSample(jobID : str):
     '''
-        Return the last sample image associated with a job ID
+        Return the last sample image associated with a job ID. The image is provided as a file path
+        and assumes that the client has access to the same filesystem as the client.
     '''
     result = database.getLastSampleFromJob(jobID=jobID)
     return JSONResponse(content=result)
+
+
+@app.get("/requestLastRemoteSample")
+async def requestLastRemoteSample(jobID : str):
+    '''
+    Return the last sample image associated with a job ID. The image is provided for download 
+    and is meant for cases where the controller and the client are not on the same filesystem.
+    '''
+    result = database.getLastSampleFromJob(jobID=jobID)
+
+
+    # Convert the result to str 
+    if "lastSample" in result:
+        result["lastSample"] = str(result["lastSample"])
+    if "image" in result and result["image"] != "":
+        return FileResponse(path=result["image"], headers=result)
+    else:
+        return JSONResponse(content = {}, headers=result)
 
 async def parse_body(request: Request):
     data: bytes = await request.body()
@@ -94,37 +112,25 @@ async def updateRemoteJobExec(file: UploadFile, jobID: str = Form(...), lastSamp
         Upload a sample image and store it locally. The file is then 
         move to a local folder which is saved in the database.
     '''
-    raise NotImplementedError("Remove job execution is not supported yet.")
-    #contents = await file.read()
+    contents = await file.read()
 
-    #filename = file.filename
+    filename = file.filename
     
-    #if filename == '':
-    #    result =  {'error': 'No file selected for uploading'}
-    #    return JSONResponse(content=result)
+    if filename == '':
+        result =  {'error': 'No file selected for uploading'}
+        return JSONResponse(content=result)
 
-    #jobFolder = os.path.join(SAMPLE_FOLDER, jobID)
-    #if not os.path.isdir(jobFolder):
-    #    os.mkdir( jobFolder )
+    jobFolder = os.path.join(SAMPLE_FOLDER, jobID)
+    if not os.path.isdir(jobFolder):
+        os.mkdir( jobFolder )
 
-    #filePath = os.path.join(jobFolder, filename)
-    #with open( filePath, "wb") as f:
-    #    f.write(contents)
+    filePath = os.path.join(jobFolder, filename)
+    with open( filePath, "wb") as f:
+        f.write(contents)
+        f.close()
 
-    
-    #stmt = select(Job).where(Job.jobID == jobID)
-    #jobs = session.execute(stmt)
-    
-    # Dev warning: first() cancel the rest of the potential row in the result
-    # and close the result. Can't call first() again on jobs after this
-    #firstJob = jobs.first()
-    
-    #if firstJob is None:
-    #    raise RuntimeError("JobID given when calling updateRemoveJobExec is not found in the database.")
-    
-    # Update the database 
-    #firstJob[0].samples.append(int(lastSample))
-    #firstJob[0].images.append(filePath)
+    result = database.addSampleToJob(jobID=jobID, filePath=filePath, lastSample=int(lastSample))
+    return result
 
 @app.get("/requestListAllJobs")
 async def requestListAllJobs():

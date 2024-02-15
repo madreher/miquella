@@ -40,7 +40,7 @@ namespace io
         file.close();
     }
 
-    static PPMImage readPPM(std::ifstream& file)
+    static PPMImage readPPM(std::istream& file)
     {
         std::string mMagic;
         file >> mMagic;

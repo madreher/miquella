@@ -17,14 +17,13 @@
 
 #include <lyra/lyra.hpp>
 
-#include <cpr/cpr.h>
-
 #include <spdlog/spdlog.h>
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 #include <miquella/core/io/ppm.h>
+#include <miquella/http/http.h>
 
 // Useful ressources:
 // - https://github.com/retifrav/sdl-imgui-example
@@ -38,25 +37,11 @@ using json = nlohmann::json;
 
 using namespace gl;
 
-// Helper to display a little (?) mark which shows a tooltip when hovered.
-// In your own code you may want to display an actual icon if you are using a merged icon fonts (see docs/FONTS.md)
-/*static void HelpMarker(const char* desc)
-{
-    ImGui::TextDisabled("(?)");
-    if (ImGui::BeginTooltip())
-    {
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-        ImGui::TextUnformatted(desc);
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
-    }
-}*/
-
-
-
 namespace ImGui
 {
 
+// Helper to display a little (?) mark which shows a tooltip when hovered.
+// In your own code you may want to display an actual icon if you are using a merged icon fonts (see docs/FONTS.md)
 void HelpMarker(const char *desc)
 {
     ImGui::TextDisabled("(?)");
@@ -99,27 +84,21 @@ struct JobSatus
 
 std::string submitRenderingRequest(const std::string& server,
                             int port,
-                            int sceneID,
+                            miquella::core::SceneID sceneID,
                             int nSamples,
                             int freqOutput)
 {
-    std::string url = server + ":" + std::to_string(port) + "/submitJob";
-    cpr::Response r = cpr::Post(cpr::Url{url},
-        cpr::Parameters{
-            {"sceneID", std::to_string(sceneID)},
-            {"nSamples", std::to_string(nSamples)},
-            {"freqOutput", std::to_string(freqOutput)}
-    });
+    auto [statusCode, text] = miquella::http::submitJob(server, port, sceneID, nSamples, freqOutput);
 
-    if (r.status_code != 200)
+    if (statusCode != 200)
     {
         spdlog::warn("Unable to contact the controller, job not submitted.");
         return "";
     }
     else
     {
-        spdlog::info("Job accepted by controller with ID {}", r.text);
-        return r.text;
+        spdlog::info("Job accepted by controller with ID {}", text);
+        return text;
     }
 }
 
@@ -127,19 +106,16 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
                             int port,
                             const std::string& jobID)
 {
-    // Create an HTTP request.
-    std::string url = server + ":" + std::to_string(port) + "/requestLastLocalSample";
-    cpr::Response r = cpr::Get(cpr::Url{url},
-        cpr::Parameters{{"jobID", jobID}});
+    auto [statusCode, text] = miquella::http::requestLastLocalSample(server, port, jobID);
 
-    if (r.status_code != 200)
+    if (statusCode != 200)
     {
         spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
         return {"", 0, ""};
     }
 
     // Parsing the response
-    json data = json::parse(r.text);
+    json data = json::parse(text);
     if(data.count("error") == 1)
     {
         spdlog::warn("Received error from controller: {}", data["error"].get<std::string>());
@@ -160,20 +136,48 @@ std::tuple<std::string, int, std::string> lastSampleRequest(const std::string& s
     }
 }
 
+std::tuple<std::string, int, std::string> lastRemoteSampleRequest(const std::string& server,
+                            int port,
+                            const std::string& jobID)
+{
+    auto [statusCode, text, header] = miquella::http::requestLastRemoteSample(server, port, jobID);
+
+    if (statusCode != 200)
+    {
+        spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
+        return {"", 0, ""};
+    }
+
+    if(header.count("error") > 0)
+    {
+        spdlog::warn("Received error from controller: {}", header["error"]);
+        return {"", 0, ""};
+    }
+    else 
+    {
+        // Parsing the response
+        int lastSample = std::stoi(header["lastsample"]); // Important: the header is always small caps
+        std::string status = header["status"];
+
+        return {text, lastSample, status};
+    }
+
+    
+}
+
 bool fullListOfJobsRequest(const std::string& server, int port, std::vector<JobSatus>& jobList)
 {
     // Create an HTTP request.
-    std::string url = server + ":" + std::to_string(port) + "/requestListAllJobs";
-    cpr::Response r = cpr::Get(cpr::Url{url});
+    auto [statusCode, text] = miquella::http::requestListJobs(server, port);
 
-    if (r.status_code != 200)
+    if (statusCode != 200)
     {
         spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
         return false;
     }
 
     // Parsing the response
-    json data = json::parse(r.text);
+    json data = json::parse(text);
 
     for(auto && job : data["jobs"])
     {
@@ -183,21 +187,18 @@ bool fullListOfJobsRequest(const std::string& server, int port, std::vector<JobS
     return true;
 }
 
-bool cancelJobRequest(const std::string& server, int port, std::string& jobID)
+bool cancelJobRequest(const std::string& server, int port, const std::string& jobID)
 {
-    // Create an HTTP request.
-    std::string url = server + ":" + std::to_string(port) + "/cancelJob";
-    cpr::Response r = cpr::Post(cpr::Url{url},
-        cpr::Parameters{{"jobID", jobID}});
+    auto [statusCode, text] = miquella::http::requestCancelJob(server, port, jobID);
 
-    if (r.status_code != 200)
+    if (statusCode != 200)
     {
         spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
         return false;
     }
 
     // Parsing the response
-    json data = json::parse(r.text);
+    json data = json::parse(text);
     if(data.count("error") > 0)
     {
         spdlog::warn("Received error from controller: {}", data["error"].get<std::string>());
@@ -213,18 +214,16 @@ bool cancelJobRequest(const std::string& server, int port, std::string& jobID)
 bool removeJobRequest(const std::string& server, int port, std::string& jobID)
 {
     // Create an HTTP request.
-    std::string url = server + ":" + std::to_string(port) + "/removeJob";
-    cpr::Response r = cpr::Post(cpr::Url{url},
-        cpr::Parameters{{"jobID", jobID}});
+    auto [statusCode, text] = miquella::http::requestRemoveJob(server, port, jobID);
 
-    if (r.status_code != 200)
+    if (statusCode != 200)
     {
         spdlog::warn("Unable to contact the controller, unable to query for the last frame.");
         return false;
     }
 
     // Parsing the response
-    json data = json::parse(r.text);
+    json data = json::parse(text);
     if(data.count("error") > 0)
     {
         spdlog::warn("Received error from controller: {}", data["error"].get<std::string>());
@@ -237,7 +236,7 @@ bool removeJobRequest(const std::string& server, int port, std::string& jobID)
     }
     else
     {
-        spdlog::warn("Received unknown response after requesting to remove a job. Body: {}", r.text);
+        spdlog::warn("Received unknown response after requesting to remove a job. Body: {}", text);
         return false;
     }
 }
@@ -368,7 +367,7 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
     
     // ImGui settings
-    int sceneID = 0;
+    int sceneIDInt = 0;
     bool ret = false;
     int maxSamples = 1000;
     int freqOutput = 50;
@@ -381,8 +380,12 @@ int main(int argc, char** argv)
     auto lastAutoSampleRetrieve = std::chrono::system_clock::now();
     auto lastJoblistRetrieve = std::chrono::system_clock::now();
     std::string jobStatus = "";
+    bool remote = true;
 
     std::vector<JobSatus> jobs;
+    std::vector<std::string> sceneNames;
+    for(uint8_t i = 0; i < static_cast<uint8_t>(miquella::core::SceneID::MAX_NB_SCENE); ++i )
+        sceneNames.push_back(miquella::core::to_string(miquella::core::SceneID(i)));
 
 
     // ---------------------- Event loop handling ----------------------------------
@@ -520,10 +523,25 @@ int main(int argc, char** argv)
         {
             // Scene ID
             {
-                const char* items[] = { "3 Balls", "Random balls", "Rectangle Light", "OneWeekend", "Lambertien test", "Dielectric", "Empty Cornel", "Sphere Cornel"};
-                ImGui::Combo("Scene Selection", &sceneID, items, IM_ARRAYSIZE(items));
-                ImGui::SameLine(); ImGui::HelpMarker(
-                    "Scene selection model.");
+                static int currentIndex = 0;
+                const char* comboPreviewValue = sceneNames[static_cast<size_t>(currentIndex)].c_str();
+                if (ImGui::BeginCombo("Scene Selection##sceneSelection", comboPreviewValue))
+                {
+                    for (int n = 0; n < static_cast<int>(sceneNames.size()); n++)
+                    {
+                        const bool is_selected = (currentIndex == n);
+                        if (ImGui::Selectable(sceneNames[static_cast<size_t>(n)].c_str(), is_selected))
+                        {
+                            currentIndex = n;
+                            sceneIDInt = n;
+                        }
+
+                        // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
             }
 
             // Max samples
@@ -566,7 +584,7 @@ int main(int argc, char** argv)
             {
                 jobID = submitRenderingRequest(serverURL,
                             port,
-                            sceneID,
+                            miquella::core::SceneID(sceneIDInt),
                             maxSamples,
                             freqOutput);
             }
@@ -601,15 +619,30 @@ int main(int argc, char** argv)
             // Retrieve last sample
             if (ImGui::Button("Retrive last sample"))
             {
-                auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
-                lastSample = sample;
-                jobStatus = status;
-                if(filePath.size() > 0)
+                if(remote)
                 {
-                    std::ifstream file;
-                    file.open(filePath);
-                    image = miquella::core::io::readPPM(file);
-                    spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    auto [ content, sample, status ] = lastRemoteSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+                    if(sample > 0)
+                    {
+                        std::istringstream iss(content);
+                        image = miquella::core::io::readPPM(iss);
+                        spdlog::debug("Loading sample {} from content request", lastSample);
+                    }
+                }
+                else 
+                {
+                    auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+                    if(filePath.size() > 0)
+                    {
+                        std::ifstream file;
+                        file.open(filePath);
+                        image = miquella::core::io::readPPM(file);
+                        spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    }
                 }
             }
 
@@ -631,18 +664,34 @@ int main(int argc, char** argv)
             
             if(timeElapsed.count() > static_cast<double>(refreshRate))
             {
-                auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
-                lastSample = sample;
-                jobStatus = status;
-                if(filePath.size() > 0)
+                if(remote)
                 {
-                    std::ifstream file;
-                    file.open(filePath);
-                    image = miquella::core::io::readPPM(file);
-                    spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    auto [ content, sample, status ] = lastRemoteSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+                    if(sample > 0)
+                    {
+                        std::istringstream iss(content);
+                        image = miquella::core::io::readPPM(iss);
+                        spdlog::debug("Loading sample {} from content request", lastSample);
+                    }
+                }
+                else
+                {
+                    auto [ filePath, sample, status ] = lastSampleRequest(serverURL, port, jobID);
+                    lastSample = sample;
+                    jobStatus = status;
+
+                    if(filePath.size() > 0)
+                    {
+                        std::ifstream file;
+                        file.open(filePath);
+                        image = miquella::core::io::readPPM(file);
+                        spdlog::debug("Loading sample {} from file {}", lastSample, filePath);
+                    }
                 }
 
-                if(status == "COMPLETED")
+                if(jobStatus == "COMPLETED")
                 {
                     // Disabling the auto retrieve
                     spdlog::info("Last frame of the job received. Disabling Auto Retrieve.");

@@ -173,7 +173,7 @@ class JobDatabase:
         }
         return result
     
-    def getLastSampleFromJob(self, jobID:str) -> dict:
+    def getLastSampleFromJob(self, jobID:str, ) -> dict:
         stmt = select(Job).where(Job.jobID == jobID)
         jobs = self.session.execute(stmt)
         

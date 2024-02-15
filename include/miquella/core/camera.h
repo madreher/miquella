@@ -9,6 +9,12 @@ namespace miquella
 namespace core
 {
 
+enum class Background
+{
+    BLACK,
+    GRADIANT
+};        
+
 class Camera {
     public:
         Camera()

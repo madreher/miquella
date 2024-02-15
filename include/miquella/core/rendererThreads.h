@@ -24,6 +24,11 @@ public:
 
     virtual ~RendererThreads(){  }
 
+    void setNbThreads(int nbThreads)
+    {
+        m_nbThreads = nbThreads;
+    }
+
     virtual void updateImageFromCamera() override
     {
         Renderer::updateImageFromCamera();
@@ -50,9 +55,9 @@ public:
         // Will not work with Ubuntu 18, gcc 7 and 8 too old, need 10 minimum
         //std::for_each(std::execution::par_unseq, std::begin(m_heightIndexes), std::end(m_heightIndexes), [&](int j))
 
-        int nbTasks = 6;
+        //int nbTasks = 6;
 
-        auto loop = [this, maxDepth, nbTasks](const int start, const int end)
+        auto loop = [this, maxDepth](const int start, const int end)
         {
             (void)end;
             auto scene = m_scene->clone();
@@ -62,7 +67,7 @@ public:
 #if LOAD_BALANCE 
             for(int i = 0; i < m_width; ++i)
             {
-                if (i % nbTasks != start) continue; 
+                if (i % m_nbThreads != start) continue; 
 #else 
             for (int i = start; i < end; ++i)
             {
@@ -106,7 +111,7 @@ public:
         };
 
 #if LOAD_BALANCE 
-        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, nbTasks, loop, static_cast<size_t>(nbTasks));
+        BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_nbThreads, loop, static_cast<size_t>(m_nbThreads));
 #else
         BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_width, loop, static_cast<size_t>(nbTasks));
 #endif
@@ -124,6 +129,7 @@ public:
 public:
     BS::thread_pool m_pool;
     size_t m_totalExecutionAccumulated = 0;
+    int m_nbThreads = 1;
 //    std::vector<int> m_heightIndexes;   // Array used to store a counter from m_height-1 to 0
 };
 
