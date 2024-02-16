@@ -148,4 +148,3 @@ set(MQ_BIN_DIR 			${CMAKE_INSTALL_PREFIX}/bin)
 set(MQ_LIB_DIR 			${CMAKE_INSTALL_PREFIX}/lib)
 
 add_subdirectory(src)
-add_subdirectory(services)

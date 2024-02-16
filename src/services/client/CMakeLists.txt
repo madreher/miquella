@@ -5,6 +5,7 @@ target_link_libraries(MiquellaClient
                                 MQ_project_options
                                 MQ_project_warnings
                                 ${PROJECT_NAME}::imgui
+                                MiquellaLib
                      )
 install(TARGETS
             MiquellaClient

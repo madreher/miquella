@@ -55,9 +55,9 @@ void runRenderer(
     miquella::core::SceneFactory sceneFactory;
     auto [ scene, camera, background ] = sceneFactory.createScene(miquella::core::SceneID(sceneID));
     
-    miquella::core::RendererThreads renderer;
-    renderer.setScene(scene);
-    renderer.setCamera(camera);
+    miquella::core::RendererThreads renderer(scene, camera, static_cast<uint32_t>(nbThreads));
+    //renderer.setScene(scene);
+    //renderer.setCamera(camera);
     renderer.setBackground(background);
     renderer.setNbThreads(nbThreads);
 
