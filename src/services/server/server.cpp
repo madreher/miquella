@@ -59,7 +59,7 @@ void runRenderer(
     //renderer.setScene(scene);
     //renderer.setCamera(camera);
     renderer.setBackground(background);
-    renderer.setNbThreads(nbThreads);
+    //renderer.setNbThreads(nbThreads);
 
     for(size_t i = 1; i <= maxSamples; ++i)
     {
@@ -177,6 +177,8 @@ int main(int argc, char** argv)
     }
     else
         spdlog::info("Unrecognized log level. Using info by default.");
+
+    spdlog::info("Starting the server with {} threads.", nbThreads);
 
     srand(static_cast<unsigned int>(time(nullptr)));
 

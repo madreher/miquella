@@ -415,7 +415,7 @@ int main(int argc, char** argv)
 {
 
     size_t sceneID = 3;
-    int nbThreads = 1;
+    uint32_t nbThreads = 1;
 
     std::vector<void (*)(miquella::core::Renderer&)> scenes;
     scenes.push_back(generateScene1);

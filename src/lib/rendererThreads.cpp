@@ -28,17 +28,20 @@ void RendererThreads::render()
     // TODO: document the parallelization method, the difference between the pool size and the number of task,
     // and how are the tasks sliced from the image.
 
+    spdlog::trace("Number of threads: {}, number of blocks: {}", m_nbThreads, m_nbBlocks);
+
     auto loop = [this, maxDepth](const int start, const int end)
     {
         (void)end;
         auto scene = m_scene->clone();
         //auto scene = m_scene;
         auto startTask = std::chrono::high_resolution_clock::now();
+        //spdlog::trace("Block starting from {} to {}", start, end);
 #define LOAD_BALANCE 1
 #if LOAD_BALANCE 
         for(int i = 0; i < m_width; ++i)
         {
-            if (i % m_nbThreads != start) continue; 
+            if (i % static_cast<int>(m_nbBlocks) != start) continue; 
 #else 
         for (int i = start; i < end; ++i)
         {
@@ -82,9 +85,9 @@ void RendererThreads::render()
     };
 
 #if LOAD_BALANCE 
-    BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_nbThreads, loop, static_cast<size_t>(m_nbThreads));
+    BS::multi_future<void> loopFuture = m_pool.submit_blocks(0, static_cast<int>(m_nbBlocks), loop, static_cast<size_t>(m_nbBlocks));
 #else
-    BS::multi_future<void> loopFuture = m_pool.parallelize_loop(0, m_width, loop, static_cast<size_t>(nbTasks));
+    BS::multi_future<void> loopFuture = m_pool.submit_blocks(0, m_width, loop, static_cast<size_t>(nbTasks));
 #endif
     
     loopFuture.wait();
