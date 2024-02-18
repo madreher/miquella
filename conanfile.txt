@@ -11,6 +11,7 @@ bshoshany-thread-pool/4.0.1
 cpprestsdk/2.10.15
 cpr/1.10.4
 nlohmann_json/3.11.2
+benchmark/1.8.3
 
 [options]
 sdl:jack=False

@@ -33,6 +33,11 @@ public:
         m_nbBlocks = 2*nbThreads;
     }
 
+    void setNbBlocks(uint32_t nbBlocks)
+    {
+        m_nbBlocks = nbBlocks;
+    }
+
     virtual void updateImageFromCamera() override
     {
         Renderer::updateImageFromCamera();
