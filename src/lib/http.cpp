@@ -140,7 +140,7 @@ std::tuple<long, std::string> requestCancelJob(
 {
     // Create an HTTP request.
     std::string url = serverURL + ":" + std::to_string(port) + CONTROLLER_CANCEL_JOB;
-    cpr::Response r = cpr::Get(cpr::Url{url},
+    cpr::Response r = cpr::Post(cpr::Url{url},
         cpr::Parameters{{"jobID", jobID}});
 
     return {r.status_code, r.text};
@@ -153,7 +153,7 @@ std::tuple<long, std::string> requestRemoveJob(
 {
     // Create an HTTP request.
     std::string url = serverURL + ":" + std::to_string(port) + CONTROLLER_REMOVE_JOB;
-    cpr::Response r = cpr::Get(cpr::Url{url},
+    cpr::Response r = cpr::Post(cpr::Url{url},
         cpr::Parameters{{"jobID", jobID}});
 
     return {r.status_code, r.text};

@@ -80,8 +80,24 @@ void runRenderer(
             // Switching to CPR
             if(remote)
             {
-                auto [returnCode, content] = miquella::http::uploadJobToRemoteController(serverURL, port, absPath, jobID, i);
-                spdlog::debug("Update remote server return code: {}", returnCode);
+                auto [returnCode, text] = miquella::http::uploadJobToRemoteController(serverURL, port, absPath, jobID, i);
+                if(returnCode == 200)
+                {
+                    json data = json::parse(text);
+                    if(data.count("status") == 0)
+                    {
+                        spdlog::warn("Unable to parse the status when sending a sample update to the local controller. Response: {}", text);
+                    }
+                    else if(data["status"].get<std::string>().compare("RUNNING") != 0)
+                    {
+                        spdlog::info("Job status changed to {}, stopping the job loop.", data["status"].get<std::string>());
+                        break;
+                    }
+                }
+                else 
+                {
+                    spdlog::debug("Update remote server return code: {}", returnCode);
+                }
             }
             else 
             {
